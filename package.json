@@ -1,6 +1,6 @@
 {
   "name": "mymap-travel-journal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MyMap · 旅行手账 — 完全离线的足迹、游记与本地照片库",
   "main": "./out/main/index.js",
   "author": "Lisalsj",
@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
     "dist:dir": "npm run build && electron-builder --win --dir --x64",
-    "checksums": "node scripts/checksums.cjs"
+    "checksums": "node scripts/checksums.cjs",
+    "size:report": "node scripts/size-report.cjs"
   },
   "dependencies": {
     "exifr": "^7.1.3",
@@ -56,14 +57,74 @@
     },
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/**/*",
+      {
+        "from": "node_modules/sharp",
+        "to": "node_modules/sharp",
+        "filter": [
+          "package.json",
+          "LICENSE",
+          "dist/**/*.cjs"
+        ]
+      },
+      {
+        "from": "node_modules/@img/colour",
+        "to": "node_modules/@img/colour",
+        "filter": [
+          "package.json",
+          "LICENSE*",
+          "lib/**/*.js",
+          "**/*.cjs",
+          "**/*.js",
+          "!bin/**/*"
+        ]
+      },
+      {
+        "from": "node_modules/detect-libc",
+        "to": "node_modules/detect-libc",
+        "filter": [
+          "package.json",
+          "LICENSE*",
+          "lib/**/*.js",
+          "**/*.cjs",
+          "**/*.js",
+          "!bin/**/*"
+        ]
+      },
+      {
+        "from": "node_modules/semver",
+        "to": "node_modules/semver",
+        "filter": [
+          "package.json",
+          "LICENSE*",
+          "lib/**/*.js",
+          "**/*.cjs",
+          "**/*.js",
+          "!bin/**/*"
+        ]
+      },
+      {
+        "from": "node_modules/@img/sharp-win32-x64",
+        "to": "node_modules/@img/sharp-win32-x64",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "extraResources": [
       {
         "from": "resources",
         "to": "data",
         "filter": [
-          "**/*"
+          "cities.json.gz",
+          "data-manifest.json",
+          "DATA-LICENSES.md",
+          "THIRD-PARTY-NOTICES.md",
+          "LICENSE-MyMap.txt",
+          "icon.png",
+          "demo/*.{jpg,jpeg,png,webp}",
+          "licenses/**/*"
         ]
       }
     ],
@@ -86,11 +147,19 @@
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
       "artifactName": "MyMap-${version}-Setup-${arch}.${ext}",
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "differentialPackage": false
     },
     "portable": {
       "artifactName": "MyMap-${version}-Portable-${arch}.${ext}"
     },
-    "electronDist": "node_modules/electron/dist"
+    "electronDist": "node_modules/electron/dist",
+    "electronLanguages": [
+      "en-US",
+      "zh-CN",
+      "zh-TW"
+    ],
+    "compression": "maximum",
+    "afterPack": "scripts/after-pack.cjs"
   }
 }

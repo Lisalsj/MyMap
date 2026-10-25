@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0",
+  "totalBytes": 413551072,
+  "engineBytes": 373987266,
+  "localeBytes": 51195226,
+  "asarBytes": 7580669,
+  "nativeBytes": 20524177,
+  "dataBytes": 11240605,
+  "licensesBytes": 1029113,
+  "citiesBytes": 9941047,
+  "artifacts": {
+    "SetupBytes": 133702601,
+    "PortableBytes": 121488443
+  }
+}

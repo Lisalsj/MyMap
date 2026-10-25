@@ -13,8 +13,9 @@ async function freePort() {
   return port
 }
 async function main() {
+  const version = require('../package.json').version
   const profile = mkdtempSync(join(tmpdir(), 'mymap-portable-smoke-'))
-  const executable = resolve(process.argv[2] || 'release/MyMap-0.1.0-Portable-x64.exe')
+  const executable = resolve(process.argv[2] || `release/MyMap-${version}-Portable-x64.exe`)
   const elapsed = []
   for (let round = 0; round < 2; round++) {
     const port = await freePort()
@@ -74,6 +75,7 @@ async function main() {
   }
   const report = {
     date: '2026-10-25',
+    version,
     executable: require('node:path').basename(executable),
     launches: 2,
     launchAndUiReadyMs: elapsed,
@@ -82,7 +84,9 @@ async function main() {
     cleanExit: true
   }
   const reportName =
-    require('node:path').basename(executable) === 'MyMap.exe' ? 'installed-smoke.json' : 'portable-smoke.json'
+    require('node:path').basename(executable) === 'MyMap.exe'
+      ? `installed-smoke-v${version}.json`
+      : `portable-smoke-v${version}.json`
   mkdirSync('docs/reports', { recursive: true })
   writeFileSync(`docs/reports/${reportName}`, JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))

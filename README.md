@@ -1,5 +1,7 @@
 # MyMap · 旅行手账
 
+[![Windows build](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml)
+
 **用自己的地图，收藏走过的路。**
 
 一款完全离线的 Windows 旅行记录软件。把去过的城市、玩过的景点、自己写的游记和本地照片，放进同一本温暖的旅行手账。
@@ -10,8 +12,8 @@
 
 从 [GitHub Releases](https://github.com/Lisalsj/MyMap/releases) 下载 Windows x64 版本：
 
-- `MyMap-0.1.0-Setup-x64.exe`：安装版，可选择安装位置。
-- `MyMap-0.1.0-Portable-x64.exe`：免安装，直接运行。
+- `MyMap-0.1.1-Setup-x64.exe`：安装版，可选择安装位置。
+- `MyMap-0.1.1-Portable-x64.exe`：免安装，直接运行。
 - `SHA256SUMS.txt`：程序文件的 SHA-256 校验值。
 
 首次打开是空的个人资料库。点击“新建旅行”，填写标题，再添加城市或景点、写手记、导入照片。也可以在设置中打开独立演示库，先看看整体效果；回到个人资料库后，演示记录不会出现在你的统计中。
@@ -28,6 +30,20 @@
 - **资料管理**：回收站、完整备份、校验恢复、切换本地资料库。
 
 地图是概略足迹图，没有道路导航或完整商家数据库。检索不到的地方可以手动添加。照片中的 GPS 按 WGS84 使用，来自其他坐标系统的坐标应先自行转换。
+
+## v0.1.1 体积精简
+
+保留自带运行时、全部离线功能及现有资料库兼容性。本机 Windows x64 实测（不含个人照片）：
+
+| 项目 | v0.1.0 | v0.1.1 |
+|---|---:|---:|
+| 安装包 | 127.51 MiB | 109.50 MiB |
+| 免安装包 | 115.86 MiB | 109.29 MiB |
+| 安装后程序 | 394.39 MiB | 337.84 MiB |
+
+仅保留英文、简体及繁体中文语言资源；纯 JavaScript 依赖合并，图片原生组件仅保留 Windows x64 的实际运行文件；城市索引无损压缩，移除重复开发许可及素材源文件副本。所有 34,188 座城市与搜索别名保持一致，必要授权完整保留。详见 `docs/reports/size-v0.1.0.json` 与 `size-v0.1.1.json`。
+
+主要体积仍来自 Electron 自带的 Chromium 和 Node.js。保留这个运行时可以在没有额外开发工具和网络的电脑上使用；此版本没有改用依赖系统 WebView2 的架构。
 
 ## 照片和资料在哪里
 

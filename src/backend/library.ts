@@ -17,6 +17,7 @@ import { join, resolve, extname } from 'node:path'
 import { atomicWrite, emptyDirectory, fileHash, managedPath } from './files'
 import { createPreviews, inspectImage, removeMedia, validateMediaPaths } from './media'
 import { markdownPhotoIds, portableJournalMarkdown } from './markdown'
+import { loadCities } from '../shared/cities'
 import type {
   AppSnapshot,
   Trip,
@@ -499,7 +500,7 @@ export class LibraryService {
   private nearestCity(lat: number, lon: number): City | undefined {
     if (!this.options.assetsPath) return undefined
     try {
-      const cities = JSON.parse(readFileSync(join(this.options.assetsPath, 'cities.json'), 'utf8')) as City[]
+      const cities = loadCities(this.options.assetsPath)
       let nearest: City | undefined
       let shortest = 75
       const rad = (degrees: number) => (degrees * Math.PI) / 180
@@ -806,7 +807,7 @@ export class LibraryService {
     let cities: City[] = []
     try {
       if (this.options.assetsPath)
-        cities = JSON.parse(readFileSync(join(this.options.assetsPath, 'cities.json'), 'utf8'))
+        cities = loadCities(this.options.assetsPath)
     } catch {}
     const canonical = (name: string, country: string, fallbackId: string) => {
       const code = country === '中国' ? 'CN' : country === '日本' ? 'JP' : country

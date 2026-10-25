@@ -10,8 +10,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -20,8 +20,12 @@ jobs:
       - run: npm run build
       - run: npm run test:e2e
       - run: npm run dist:win
+      - name: Test packaged executable
+        run: npx playwright test tests/e2e/app.spec.ts --output=.superpowers/packaged-results
+        env:
+          MYMAP_EXECUTABLE: ${{ github.workspace }}\release\win-unpacked\MyMap.exe
       - run: npm run checksums
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MyMap-Windows-x64
           path: |

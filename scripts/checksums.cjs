@@ -3,8 +3,9 @@ const { createReadStream, readdirSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 async function main() {
   const lines = []
+  const version = require('../package.json').version
   for (const file of readdirSync('release')
-    .filter((name) => name.endsWith('.exe'))
+    .filter((name) => name.startsWith(`MyMap-${version}-`) && name.endsWith('.exe'))
     .sort()) {
     const hash = createHash('sha256')
     for await (const chunk of createReadStream(join('release', file))) hash.update(chunk)

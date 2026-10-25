@@ -17,5 +17,18 @@
       "sha256": "9c5e0684a0aeaa1b8a62ec08f2edcea94a425626806b8b249c1d9fc9b09168ec",
       "bytes": 3364011
     }
+  },
+  "cityIndex": {
+    "file": "cities.json.gz",
+    "format": "mymap-cities",
+    "version": 1,
+    "encoding": "gzip",
+    "bytes": 3595644,
+    "sha256": "d83ea89c5be36f90091200cb235556ba77e8363d16ce369994cfd583c33e0001",
+    "uncompressedBytes": 7684762,
+    "sourceFile": "cities.json",
+    "sourceBytes": 9941047,
+    "sourceSha256": "b6bca07fef2449355b00a60390af8d308c32d1f4b311b1cecc9d02d9a154efc4",
+    "canonicalCitySha256": "ee82464e2ba08e047bba320b6b43207905ca45ff33db543ba5c6f73bf4594709"
   }
 }

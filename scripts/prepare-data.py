@@ -5,11 +5,14 @@ Downloads happen here at development time, never in the application.
 Sources / attribution: resources/DATA-LICENSES.md.
 """
 import datetime
+from decimal import Decimal
+import gzip
 import hashlib
 import io
 import json
 from pathlib import Path
 import re
+import sys
 import urllib.request
 import zipfile
 
@@ -69,6 +72,48 @@ def round_coords(value):
         return [round(number, 4) for number in value]
     return [round_coords(item) for item in value]
 
+CITY_COLUMNS = ['id', 'name', 'country', 'region', 'lat', 'lon', 'aliases', 'population']
+
+def canonical_city_json(cities):
+    """Match JSON.stringify(City[]) in column order for GeoNames' flat records."""
+    def scalar(value):
+        if isinstance(value, float):
+            if value.is_integer():
+                return str(int(value))  # Includes JavaScript's normalization of -0.
+            if abs(value) >= 0.000001:
+                return format(Decimal(repr(value)), 'f')  # WGS84 coordinates never exceed 180.
+            return repr(value).replace('e-0', 'e-').replace('e+0', 'e+')
+        return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+    return '[' + ','.join('{' + ','.join(json.dumps(column) + ':' + scalar(city[column])
+                                        for column in CITY_COLUMNS) + '}' for city in cities) + ']'
+
+def write_city_index(cities):
+    """Lossless, versioned tuple index; gzip headers never include time or filename."""
+    data = {'format': 'mymap-cities', 'version': 1, 'columns': CITY_COLUMNS,
+            'rows': [[city[column] for column in CITY_COLUMNS] for city in cities]}
+    raw = json.dumps(data, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+    buffer = io.BytesIO()
+    with gzip.GzipFile(filename='', mode='wb', fileobj=buffer, compresslevel=9, mtime=0) as output:
+        output.write(raw)
+    compressed = buffer.getvalue()
+    (RES / 'cities.json.gz').write_bytes(compressed)
+    source = (RES / 'cities.json').read_bytes()
+    return {'file': 'cities.json.gz', 'format': 'mymap-cities', 'version': 1,
+            'encoding': 'gzip', 'bytes': len(compressed),
+            'sha256': hashlib.sha256(compressed).hexdigest(), 'uncompressedBytes': len(raw),
+            'sourceFile': 'cities.json', 'sourceBytes': len(source),
+            'sourceSha256': hashlib.sha256(source).hexdigest(),
+            'canonicalCitySha256': hashlib.sha256(canonical_city_json(cities).encode('utf-8')).hexdigest()}
+
+if '--compress-existing' in sys.argv:
+    # Repack the audited snapshot without downloading or rewriting its source JSON.
+    cities = json.loads((RES / 'cities.json').read_text(encoding='utf-8'))
+    manifest = json.loads((RES / 'data-manifest.json').read_text(encoding='utf-8'))
+    manifest['cityIndex'] = write_city_index(cities)
+    (RES / 'data-manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+    print('Compressed', len(cities), 'existing cities into', manifest['cityIndex']['bytes'], 'bytes')
+    sys.exit(0)
+
 land = json.loads(fetch('land'))
 for feature in land['features']:
     feature['properties'] = {}
@@ -102,5 +147,5 @@ for record in records:
                    'aliases': ','.join(aliases), 'population': int(f[14] or 0)})
 cities.sort(key=lambda city: (-city['population'], city['id']))
 (RES / 'cities.json').write_text(json.dumps(cities, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-(RES / 'data-manifest.json').write_text(json.dumps({'retrieved': datetime.date.today().isoformat(), 'cityCount': len(cities), 'sources': downloads}, indent=2), encoding='utf-8')
+(RES / 'data-manifest.json').write_text(json.dumps({'retrieved': datetime.date.today().isoformat(), 'cityCount': len(cities), 'sources': downloads, 'cityIndex': write_city_index(cities)}, indent=2), encoding='utf-8')
 print('Prepared', len(cities), 'cities and', len(land['features']), 'land features', flush=True)

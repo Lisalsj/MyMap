@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import type { AppSnapshot, City, ImportProgress } from '../shared/types'
+import { loadCities } from '../shared/cities'
 import { assetPath, isTrustedUrl, allowedRequest, mediaRequest } from './security'
 
 const developmentUrl = process.env.ELECTRON_RENDERER_URL
@@ -225,7 +226,7 @@ else {
         pending.clear()
       })
       try {
-        cities = JSON.parse(readFileSync(join(assetsRoot, 'cities.json'), 'utf8'))
+        cities = loadCities(assetsRoot)
       } catch {
         /* still allow manually entered locations */
       }
