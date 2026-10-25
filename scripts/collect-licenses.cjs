@@ -3,10 +3,11 @@ const path = require('node:path')
 
 // These development dependencies ship inside renderer JS/CSS/font bundles.
 const rendererEntries = [
-  '@fontsource/noto-serif-sc',
+  '@fontsource-variable/manrope',
+  '@fontsource/noto-sans-sc',
   'd3-geo',
   'topojson-client',
-  'lucide-react',
+  '@phosphor-icons/react',
   'react',
   'react-dom',
   'react-markdown',

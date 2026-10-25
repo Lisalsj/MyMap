@@ -16,7 +16,7 @@ import {
   RotateCcw,
   Sparkles,
   X
-} from 'lucide-react'
+} from '../ui/icons'
 import type { AppSnapshot } from '../../shared/types'
 import {
   buildCityLights,
@@ -342,14 +342,7 @@ export const FootprintMap = memo(function FootprintMap({
           ...(!world ? [[0, 65, 210, 205] as [number, number, number, number]] : []),
           [0, size.height - 60, size.width, size.height],
           ...(selected
-            ? [
-                [size.width - 295, size.height - 320, size.width, size.height] as [
-                  number,
-                  number,
-                  number,
-                  number
-                ]
-              ]
+            ? [[size.width - 408, 80, size.width, size.height] as [number, number, number, number]]
             : [])
         ]
       }
@@ -491,7 +484,8 @@ export const FootprintMap = memo(function FootprintMap({
         <g className="map-markers">
           {clusters.map((cluster) => {
             const count = cluster.items.length,
-              item = cluster.items[0]
+              item = cluster.items[0],
+              markerRadius = count > 1 ? Math.max(13, String(count).length * 3.6 + 5) : 6
             const activate = () => {
               if (picking) return
               if (
@@ -525,8 +519,8 @@ export const FootprintMap = memo(function FootprintMap({
                   }
                 }}
               >
-                <circle className="marker-aura" r={count > 1 ? 19 : 12} />
-                <circle className="marker-body" r={count > 1 ? 13 : 6} />
+                <circle className="marker-aura" r={markerRadius + 6} />
+                <circle className="marker-body" r={markerRadius} />
                 {count > 1 && (
                   <text textAnchor="middle" y="4">
                     {count}

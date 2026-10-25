@@ -26,9 +26,10 @@ import {
 } from '../src/renderer/map/domain'
 
 const repository = resolve('.')
+const appVersion = JSON.parse(readFileSync(join(repository, 'package.json'), 'utf8')).version
 const profilePrefix = 'mymap-map-benchmark-'
-const reportPath = join(repository, 'docs/reports/map-performance-v0.2.0.json')
-const screenshotDirectory = join(repository, 'docs/screenshots')
+const reportPath = join(repository, `docs/reports/map-performance-v${appVersion}.json`)
+const screenshotDirectory = join(repository, `docs/screenshots/v${appVersion}`)
 const tripCount = 100
 const visitsPerTrip = 50
 const durationMs = 3000
@@ -334,7 +335,7 @@ function removeOwnTemporaryProfile(profile: string) {
 async function main() {
   if (process.argv.includes('--help')) {
     console.log(
-      'Run from the repository root: npx tsx scripts/benchmark-map.ts [--selectors-only]. Optional MYMAP_EXECUTABLE selects a packaged MyMap.exe. Shows an independent benchmark window; writes docs/reports/map-performance-v0.2.0.json and map screenshots.'
+      'Run from the repository root: npx tsx scripts/benchmark-map.ts [--selectors-only]. Optional MYMAP_EXECUTABLE selects a packaged MyMap.exe. Shows an independent benchmark window; writes the versioned map performance report and screenshots.'
     )
     return
   }
@@ -538,7 +539,10 @@ async function main() {
     await page.evaluate('window.scrollTo(0, 0)')
     await delay(300)
     await page.screenshot({ path: join(screenshotDirectory, 'map-city-detail.png') })
-    report.screenshots = ['docs/screenshots/map-overview.png', 'docs/screenshots/map-city-detail.png']
+    report.screenshots = [
+      `docs/screenshots/v${appVersion}/map-overview.png`,
+      `docs/screenshots/v${appVersion}/map-city-detail.png`
+    ]
     report.status = 'complete'
   } catch (error) {
     failed = true

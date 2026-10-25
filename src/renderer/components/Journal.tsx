@@ -1,20 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { BookOpen, Check, Download, Eye, ImagePlus, PencilLine, Plus, Save, Trash2 } from 'lucide-react'
+import { BookOpen, Check, Download, Eye, ImagePlus, PencilLine, Plus, Save, Trash2 } from '../ui/icons'
 import { photoUrl, type AppSnapshot, type Entry } from '../../shared/types'
-import {
-  activeAttachments,
-  activeEntries,
-  activeTrips,
-  DraftQueue,
-  mediaId,
-  orderedVisits,
-  safeMarkdownUrl,
-  type Draft,
-  type SaveState
-} from '../model'
+import { DraftQueue, mediaId, safeMarkdownUrl, type Draft, type SaveState } from '../model'
+import { getSnapshotIndex } from '../snapshotIndex'
 import { Empty, Modal, Spinner } from './Common'
+import '../styles/journal.css'
 
 interface Props {
   snapshot: AppSnapshot
@@ -38,16 +30,24 @@ export function Journal({
   refresh,
   confirmTrash
 }: Props) {
-  const entries = activeEntries(snapshot)
-    .filter((e) => !tripId || e.tripId === tripId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  const selected = activeEntries(snapshot).find((e) => e.id === entryId)
+  const index = useMemo(() => getSnapshotIndex(snapshot), [snapshot])
+  const [scopeTrip, setScopeTrip] = useState(tripId)
+  const entries = useMemo(
+    () =>
+      index.activeEntries
+        .filter((entry) => !scopeTrip || entry.tripId === scopeTrip)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [index, scopeTrip]
+  )
+  const candidate = entryId ? index.entryById.get(entryId) : undefined
+  const selected =
+    candidate && !candidate.deletedAt && index.activeTripIds.has(candidate.tripId) ? candidate : undefined
   const [draft, setDraft] = useState<Draft | null>(null),
     [status, setStatus] = useState<SaveState>('saved'),
     [saveError, setSaveError] = useState(''),
     [preview, setPreview] = useState(false),
     [photoPicker, setPhotoPicker] = useState(false),
-    [newTrip, setNewTrip] = useState(tripId || activeTrips(snapshot)[0]?.id || ''),
+    [newTrip, setNewTrip] = useState(tripId || index.activeTrips[0]?.id || ''),
     [creating, setCreating] = useState(false)
   const savedCallback = useRef(onSaved)
   savedCallback.current = onSaved
@@ -65,6 +65,8 @@ export function Journal({
     if (selected) {
       queue.current!.open(selected)
       setDraft({ ...selected })
+      // Search and detail-page entry links always reveal the selected entry's scope.
+      if (scopeTrip && selected.tripId !== scopeTrip) setScopeTrip(selected.tripId)
     } else {
       setDraft(null)
       queue.current!.draft = null
@@ -93,14 +95,28 @@ export function Journal({
       setEntryId(id)
     } catch {}
   }
+  const changeScope = async (value: string) => {
+    try {
+      await queue.current!.flush()
+      setScopeTrip(value)
+      if (value) setNewTrip(value)
+      const next = index.activeEntries
+        .filter((entry) => !value || entry.tripId === value)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+      if (selected && value && selected.tripId !== value) setEntryId(next?.id || '')
+    } catch {
+      /* Keep the current scope and recoverable draft when saving fails. */
+    }
+  }
   async function create() {
-    const id = newTrip || activeTrips(snapshot)[0]?.id
+    const id = newTrip || index.activeTrips[0]?.id
     if (!id) return
     try {
       await queue.current!.flush()
       setCreating(true)
       const entry = await window.myMap.saveEntry({ tripId: id, title: '未命名的旅行手记', markdown: '' })
       onSaved(entry)
+      if (scopeTrip && scopeTrip !== id) setScopeTrip(id)
       setEntryId(entry.id)
     } catch (e) {
       setSaveError(String(e))
@@ -109,29 +125,54 @@ export function Journal({
       setCreating(false)
     }
   }
-  const attachments = draft ? activeAttachments(snapshot).filter((a) => a.tripId === draft.tripId) : []
+  const attachments = draft ? index.attachmentsByTrip.get(draft.tripId) || [] : []
   return (
     <div className="journal-layout">
       <aside className="journal-index">
-        <div className="section-label">
-          纸上的远方 <span>{entries.length} 篇</span>
+        <div className="journal-index-heading">
+          <h2>手记目录</h2>
+          <span>{entries.length} 篇</span>
         </div>
-        <select aria-label="新游记所属旅行" value={newTrip} onChange={(e) => setNewTrip(e.target.value)}>
-          <option value="">选择所属旅行</option>
-          {activeTrips(snapshot).map((t) => (
-            <option value={t.id} key={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
-        <button
-          className="button primary journal-new"
-          disabled={creating || !activeTrips(snapshot).length}
-          onClick={create}
-        >
-          <Plus size={16} />
-          {creating ? '创建中…' : '写一篇手记'}
-        </button>
+        <label className="journal-scope">
+          查看范围
+          <select
+            aria-label="手记查看旅行"
+            value={scopeTrip}
+            onChange={(event) => void changeScope(event.target.value)}
+          >
+            <option value="">所有旅行</option>
+            {index.activeTrips.map((trip) => (
+              <option key={trip.id} value={trip.id}>
+                {trip.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="journal-create">
+          <label>
+            新手记保存到
+            <select
+              aria-label="新游记所属旅行"
+              value={newTrip}
+              onChange={(event) => setNewTrip(event.target.value)}
+            >
+              <option value="">选择所属旅行</option>
+              {index.activeTrips.map((trip) => (
+                <option key={trip.id} value={trip.id}>
+                  {trip.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="button primary journal-new"
+            disabled={creating || !index.activeTrips.length}
+            onClick={create}
+          >
+            <Plus size={16} />
+            {creating ? '创建中…' : '写一篇手记'}
+          </button>
+        </div>
         <div className="entry-list">
           {entries.map((e) => (
             <button
@@ -142,7 +183,7 @@ export function Journal({
               <BookOpen size={18} />
               <span>
                 <strong>{e.title || '未命名手记'}</strong>
-                <small>{snapshot.trips.find((t) => t.id === e.tripId)?.title}</small>
+                <small>{index.tripById.get(e.tripId)?.title}</small>
                 <small>
                   {e.updatedAt.slice(0, 10).replaceAll('-', '.')} · {e.markdown.length} 字
                 </small>
@@ -150,6 +191,13 @@ export function Journal({
             </button>
           ))}
         </div>
+        {!entries.length && (
+          <p className="journal-list-empty">
+            {scopeTrip
+              ? '这段旅行还没有手记。选择上方旅行，写下第一篇。'
+              : '还没有手记。选择所属旅行，开始记录。'}
+          </p>
+        )}
       </aside>
       <section className="journal-paper">
         {draft ? (
@@ -176,16 +224,26 @@ export function Journal({
                 <button
                   className="icon-button"
                   title={preview ? '继续编辑' : '预览排版'}
+                  aria-label={preview ? '继续编辑' : '预览排版'}
+                  aria-pressed={preview}
                   onClick={() => setPreview(!preview)}
                 >
                   {preview ? <PencilLine size={18} /> : <Eye size={18} />}
+                  <span>{preview ? '编辑' : '预览'}</span>
                 </button>
-                <button className="icon-button" title="插入旅行照片" onClick={() => setPhotoPicker(true)}>
+                <button
+                  className="icon-button"
+                  title="插入旅行照片"
+                  aria-label="插入旅行照片"
+                  onClick={() => setPhotoPicker(true)}
+                >
                   <ImagePlus size={18} />
+                  <span>插图</span>
                 </button>
                 <button
                   className="icon-button"
                   title="导出 Markdown"
+                  aria-label="导出 Markdown"
                   onClick={async () => {
                     try {
                       await queue.current!.flush()
@@ -194,10 +252,12 @@ export function Journal({
                   }}
                 >
                   <Download size={18} />
+                  <span>导出</span>
                 </button>
                 <button
                   className="icon-button danger"
                   title="移到回收站"
+                  aria-label="移到回收站"
                   onClick={async () => {
                     try {
                       await queue.current!.flush()
@@ -218,30 +278,24 @@ export function Journal({
               </div>
             )}
             <div className="entry-associations">
-              <select
-                aria-label="游记所属旅行"
-                title="游记创建后保留在原旅行中"
-                value={draft.tripId}
-                disabled
-              >
-                {activeTrips(snapshot).map((t) => (
-                  <option value={t.id} key={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="游记关联地点"
-                value={draft.visitId || ''}
-                onChange={(e) => edit({ visitId: e.target.value || null })}
-              >
-                <option value="">整段旅行 · 不关联地点</option>
-                {orderedVisits(snapshot, draft.tripId).map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {snapshot.places.find((p) => p.id === v.placeId)?.name} {v.date}
-                  </option>
-                ))}
-              </select>
+              <span className="entry-trip">
+                所属旅行<strong>{index.tripById.get(draft.tripId)?.title}</strong>
+              </span>
+              <label>
+                关联地点
+                <select
+                  aria-label="游记关联地点"
+                  value={draft.visitId || ''}
+                  onChange={(e) => edit({ visitId: e.target.value || null })}
+                >
+                  <option value="">整段旅行 · 不关联地点</option>
+                  {(index.orderedVisitsByTrip.get(draft.tripId) || []).map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {index.placeById.get(v.placeId)?.name} {v.date}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             {preview ? (
               <article className="markdown-body">
@@ -253,7 +307,7 @@ export function Journal({
                   components={{
                     img: ({ src, alt }) => {
                       const id = mediaId(typeof src === 'string' ? src : '')
-                      return id && snapshot.photos.some((p) => p.id === id && !p.deletedAt) ? (
+                      return id && index.photoById.has(id) && !index.photoById.get(id)!.deletedAt ? (
                         <figure>
                           <img src={photoUrl(id, 'preview')} alt={alt || '旅行照片'} loading="lazy" />
                           {alt && <figcaption>{alt}</figcaption>}
@@ -278,9 +332,7 @@ export function Journal({
                   aria-label="游记标题"
                   placeholder="为这一天起个名字"
                 />
-                <div className="entry-subtitle">
-                  TRAVEL NOTES · {snapshot.trips.find((t) => t.id === draft.tripId)?.title}
-                </div>
+                <div className="entry-subtitle">写下沿途的风景与心情</div>
                 <textarea
                   className="markdown-input"
                   aria-label="Markdown 游记正文"
@@ -291,7 +343,7 @@ export function Journal({
                   }
                 />
                 <footer className="writing-footer">
-                  <span>Markdown 书写 · 500 毫秒自动保存</span>
+                  <span>支持 Markdown · 自动保存到本地</span>
                   <span>{draft.markdown.length} 字</span>
                 </footer>
               </div>
@@ -301,7 +353,7 @@ export function Journal({
           <Empty
             title="让旅途，再发生一次"
             description="选择一篇手记，或翻开新的一页。每一段普通的日子，都值得被记住。"
-            action={activeTrips(snapshot).length ? create : undefined}
+            action={index.activeTrips.length ? create : undefined}
             label="写一篇手记"
           />
         )}

@@ -3,7 +3,7 @@
 MyMap application code and original demonstration illustrations are MIT licensed.
 
 The bundled map data and city index have their own terms; see DATA-LICENSES.md.
-The local Noto Serif SC font is distributed under the SIL Open Font License 1.1.
+The bundled Manrope and Noto Sans SC fonts are distributed under the SIL Open Font License 1.1.
 sharp is Apache-2.0 and includes libvips and other libraries under the terms in its included third-party notice.
 Electron includes Chromium, Node.js and SQLite; the Windows distribution includes Electron's license and Chromium third-party notices.
 

@@ -1,6 +1,14 @@
 [
   {
-    "package": "@fontsource/noto-serif-sc",
+    "package": "@fontsource-variable/manrope",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "@fontsource/noto-sans-sc",
     "version": "5.3.1",
     "license": "OFL-1.1",
     "files": [
@@ -19,6 +27,14 @@
     "package": "@img/sharp-win32-x64",
     "version": "0.35.5",
     "license": "Apache-2.0 AND LGPL-3.0-or-later",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "@phosphor-icons/react",
+    "version": "2.1.10",
+    "license": "MIT",
     "files": [
       "LICENSE"
     ]
@@ -317,14 +333,6 @@
     "license": "MIT",
     "files": [
       "license"
-    ]
-  },
-  {
-    "package": "lucide-react",
-    "version": "1.61.0",
-    "license": "ISC",
-    "files": [
-      "LICENSE"
     ]
   },
   {

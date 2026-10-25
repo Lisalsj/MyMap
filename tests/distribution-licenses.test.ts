@@ -7,10 +7,11 @@ import { join, resolve } from 'node:path'
 const collector = resolve('scripts/collect-licenses.cjs')
 const roots: string[] = []
 const rendererEntries = [
-  '@fontsource/noto-serif-sc',
+  '@fontsource-variable/manrope',
+  '@fontsource/noto-sans-sc',
   'd3-geo',
   'topojson-client',
-  'lucide-react',
+  '@phosphor-icons/react',
   'react',
   'react-dom',
   'react-markdown',
@@ -114,8 +115,8 @@ describe('distributed dependency licenses', () => {
       '@img/sharp-win32-arm64'
     ])
       expect(names).not.toContain(name)
-    expect(readFileSync(join(root, 'resources/licenses/@fontsource__noto-serif-sc/LICENSE'), 'utf8')).toBe(
-      'License for @fontsource/noto-serif-sc'
+    expect(readFileSync(join(root, 'resources/licenses/@fontsource__noto-sans-sc/LICENSE'), 'utf8')).toBe(
+      'License for @fontsource/noto-sans-sc'
     )
   })
 

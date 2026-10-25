@@ -1,0 +1,165 @@
+.passport-page {
+  display: grid;
+  gap: var(--space-8);
+}
+.passport-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--green-soft);
+}
+.passport-banner-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  color: var(--green);
+}
+.passport-banner-copy > svg {
+  flex-shrink: 0;
+}
+.passport-banner-copy h2 {
+  margin: var(--space-2) 0;
+  color: var(--green-dark);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-2xl);
+  font-weight: 600;
+}
+.passport-banner-copy p {
+  margin: 0;
+  max-width: 65ch;
+  color: var(--muted);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+}
+.passport-total {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--green-dark);
+}
+.passport-total strong {
+  font-size: var(--text-4xl);
+  line-height: var(--leading-4xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.passport-total span {
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-6);
+  align-items: start;
+}
+.city-stamp {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  padding: var(--space-6);
+  color: var(--green);
+  text-align: left;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: transparent;
+  transition: transform var(--duration-fast) var(--ease);
+}
+.city-stamp:hover {
+  background: var(--surface);
+  transform: translateY(-2px);
+}
+.city-stamp:active {
+  transform: scale(0.98);
+}
+.stamp-art {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 1;
+  padding: var(--space-4);
+  border: 2px solid currentColor;
+  border-radius: var(--radius-full);
+  background: var(--green-soft);
+  text-align: center;
+}
+.stamp-art .stamp-top,
+.stamp-art .stamp-bottom {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: 500;
+}
+.stamp-art > strong {
+  max-width: 100%;
+  color: var(--green-dark);
+  font-size: var(--text-xl);
+  line-height: var(--leading-xl);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.stamp-caption {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+.stamp-caption > strong {
+  color: var(--ink);
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.stamp-date {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+.stamp-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--space-10);
+  color: var(--green);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: 500;
+}
+.passport-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+@media (max-width: 700px) {
+  .passport-banner {
+    padding: var(--space-6);
+  }
+  .passport-banner-copy h2 {
+    font-size: var(--text-xl);
+    line-height: var(--leading-xl);
+  }
+  .stamp-grid {
+    gap: var(--space-4);
+  }
+  .city-stamp {
+    padding: var(--space-4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .city-stamp {
+    transition: none;
+  }
+  .city-stamp:hover,
+  .city-stamp:active {
+    transform: none;
+  }
+}

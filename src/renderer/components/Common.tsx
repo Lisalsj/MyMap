@@ -1,6 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react'
-import { X, Compass, LoaderCircle, ArrowRight, Image } from 'lucide-react'
+import { useRef, type ReactNode } from 'react'
+import { X, Compass, ArrowRight, Image } from '../ui/icons'
 import { photoUrl, type AppSnapshot, type Trip } from '../../shared/types'
+import { getSnapshotIndex } from '../snapshotIndex'
+import { useDialogFocus } from '../ui/useDialogFocus'
 
 export function Modal({
   title,
@@ -13,48 +15,8 @@ export function Modal({
   onClose: () => void
   wide?: boolean
 }) {
-  const close = useRef(onClose),
-    holder = useRef<HTMLElement>(null)
-  close.current = onClose
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopImmediatePropagation()
-        close.current()
-      }
-      if (e.key === 'Tab') {
-        const focusable = [
-          ...holder.current!.querySelectorAll<HTMLElement>(
-            'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]'
-          )
-        ]
-        const first = focusable[0],
-          last = focusable.at(-1)
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault()
-          last?.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first?.focus()
-        }
-      }
-    }
-    window.addEventListener('keydown', key, true)
-    const prior = document.activeElement as HTMLElement | null
-    const timer = setTimeout(() => {
-      const h = holder.current
-      ;(
-        h?.querySelector<HTMLElement>('input') ||
-        h?.querySelector<HTMLElement>('textarea') ||
-        h?.querySelector<HTMLElement>('button')
-      )?.focus()
-    }, 0)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('keydown', key, true)
-      prior?.focus()
-    }
-  }, [])
+  const holder = useRef<HTMLElement>(null)
+  useDialogFocus(holder, onClose)
   return (
     <div
       className="modal-backdrop"
@@ -67,11 +29,12 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
         className={`modal ${wide ? 'modal-wide' : ''}`}
       >
         <header className="modal-header">
           <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="关闭">
+          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             <X size={20} />
           </button>
         </header>
@@ -108,7 +71,13 @@ export function Empty({
   )
 }
 export function Spinner() {
-  return <LoaderCircle size={15} className="spin" />
+  return (
+    <span className="activity-indicator" role="status" aria-label="正在处理">
+      <i />
+      <i />
+      <i />
+    </span>
+  )
 }
 export function Cover({
   trip,
@@ -119,10 +88,9 @@ export function Cover({
   snapshot: AppSnapshot
   className?: string
 }) {
-  const attachment = snapshot.attachments.find(
-    (a) => !a.deletedAt && a.tripId === trip.id && a.photoId === trip.coverPhotoId
-  )
-  const photo = attachment && snapshot.photos.find((p) => !p.deletedAt && p.id === attachment.photoId)
+  const index = getSnapshotIndex(snapshot)
+  const attachment = index.attachmentsByTrip.get(trip.id)?.find((a) => a.photoId === trip.coverPhotoId)
+  const photo = attachment && index.photoById.get(attachment.photoId)
   return (
     <div className={`trip-cover ${className} cover-${trip.title.length % 4}`}>
       {photo ? (
@@ -133,7 +101,7 @@ export function Cover({
           <div className="cover-mountain back" />
           <div className="cover-mountain front" />
           <span className="cover-mark">
-            <Image size={15} /> YOUR NEXT CHAPTER
+            <Image size={16} /> 旅程里的风景
           </span>
         </>
       )}

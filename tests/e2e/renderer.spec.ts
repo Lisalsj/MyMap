@@ -26,7 +26,7 @@ test('Chinese renderer forms, city search, journal flush and trash recovery work
     await modal.getByRole('textbox', { name: '旅行名称' }).fill('杭州慢慢走')
     await modal.getByRole('textbox', { name: '旅行标签' }).fill('山野，周末')
     await modal.getByRole('button', { name: '创建旅行', exact: true }).click()
-    await expect(page.getByRole('heading', { name: '杭州慢慢走.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '杭州慢慢走', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '添加地点', exact: true }).click()
     const visit = page.getByRole('dialog', { name: '把一个地方，放进回忆' })
     await visit.getByPlaceholder('搜索城市，中英文均可').fill('杭州')
@@ -39,7 +39,7 @@ test('Chinese renderer forms, city search, journal flush and trash recovery work
     await page.getByRole('textbox', { name: 'Markdown 游记正文' }).fill('# 雨后的西湖\n\n慢慢走，慢慢记。')
     // Leave before the debounce expires. Navigation must await the serialized save.
     await page.getByRole('button', { name: '旅行护照', exact: true }).click()
-    await expect(page.getByRole('heading', { name: '旅行护照.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '旅行护照', exact: true, level: 1 })).toBeVisible()
     const data = await page.evaluate(() => window.myMap.snapshot())
     expect(data.entries[0].title).toBe('西湖的一天')
     expect(data.entries[0].markdown).toContain('慢慢走，慢慢记。')

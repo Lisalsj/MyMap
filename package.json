@@ -1,6 +1,6 @@
 {
   "name": "mymap-travel-journal",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MyMap · 旅行手账 — 完全离线的足迹、游记与本地照片库",
   "main": "./out/main/index.js",
   "author": "Lisalsj",
@@ -27,7 +27,9 @@
     "sharp": "latest"
   },
   "devDependencies": {
-    "@fontsource/noto-serif-sc": "latest",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource/noto-sans-sc": "^5.3.1",
+    "@phosphor-icons/react": "^2.1.10",
     "@playwright/test": "latest",
     "@types/d3-geo": "latest",
     "@types/node": "^24.0.0",
@@ -39,7 +41,6 @@
     "electron": "^45.0.0",
     "electron-builder": "latest",
     "electron-vite": "latest",
-    "lucide-react": "latest",
     "opencc-js": "^1.4.2",
     "prettier": "^3.9.10",
     "react": "^19.0.0",
