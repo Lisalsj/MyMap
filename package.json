@@ -1,0 +1,96 @@
+{
+  "name": "mymap-travel-journal",
+  "version": "0.1.0",
+  "description": "MyMap · 旅行手账 — 完全离线的足迹、游记与本地照片库",
+  "main": "./out/main/index.js",
+  "author": "Lisalsj",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js",
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64",
+    "dist:dir": "npm run build && electron-builder --win --dir --x64",
+    "checksums": "node scripts/checksums.cjs"
+  },
+  "dependencies": {
+    "exifr": "^7.1.3",
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-gfm": "^3.1.0",
+    "mdast-util-to-markdown": "^2.2.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "sharp": "latest"
+  },
+  "devDependencies": {
+    "@fontsource/noto-serif-sc": "latest",
+    "@playwright/test": "latest",
+    "@types/d3-geo": "latest",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "latest",
+    "d3-geo": "latest",
+    "electron": "^45.0.0",
+    "electron-builder": "latest",
+    "electron-vite": "latest",
+    "lucide-react": "latest",
+    "prettier": "^3.9.10",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "latest",
+    "remark-gfm": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  },
+  "build": {
+    "appId": "com.lisalsj.mymap",
+    "productName": "MyMap",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "data",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@img/**/*"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "resources/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "MyMap-${version}-Setup-${arch}.${ext}",
+      "createDesktopShortcut": true
+    },
+    "portable": {
+      "artifactName": "MyMap-${version}-Portable-${arch}.${ext}"
+    },
+    "electronDist": "node_modules/electron/dist"
+  }
+}

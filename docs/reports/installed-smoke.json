@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-25",
+  "executable": "MyMap.exe",
+  "launches": 2,
+  "launchAndUiReadyMs": [
+    1117,
+    516
+  ],
+  "persistence": "passed",
+  "externalNetworkBlocked": true,
+  "cleanExit": true
+}

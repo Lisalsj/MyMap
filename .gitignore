@@ -1,0 +1,17 @@
+node_modules/
+out/
+release/
+test-results/
+playwright-report/
+.superpowers/
+docs/IMPLEMENTATION.md
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+*.log
+.env*
+!\.env.example
+Library/
+backups/
+.DS_Store

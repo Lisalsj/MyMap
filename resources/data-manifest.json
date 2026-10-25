@@ -1,0 +1,21 @@
+{
+  "retrieved": "2026-10-25",
+  "cityCount": 34188,
+  "sources": {
+    "land": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_land.geojson",
+      "sha256": "e874b27a51d146452be360cafb3cc50c86001074a67d534113e6534682f9826b",
+      "bytes": 1636166
+    },
+    "regions": {
+      "url": "https://download.geonames.org/export/dump/admin1CodesASCII.txt",
+      "sha256": "2e4867f5397acb056ea26377601b57af37cb4c81399770225018e9e439e91ad3",
+      "bytes": 151571
+    },
+    "cities": {
+      "url": "https://download.geonames.org/export/dump/cities15000.zip",
+      "sha256": "9c5e0684a0aeaa1b8a62ec08f2edcea94a425626806b8b249c1d9fc9b09168ec",
+      "bytes": 3364011
+    }
+  }
+}
