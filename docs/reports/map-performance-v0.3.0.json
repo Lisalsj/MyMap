@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-25T19:11:02.197Z",
+  "status": "complete",
+  "command": "npx tsx scripts/benchmark-map.ts",
+  "environment": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64",
+    "node": "24.12.0",
+    "cpu": "Intel(R) Core(TM) i7-14700KF",
+    "logicalCpuCount": 28,
+    "appVersion": "0.3.0"
+  },
+  "methodology": {
+    "fixture": "Synthetic 100 trips × 50 distinct scenic stops; bundled mapped city centers, 24 distinct city regions when available; every tenth stop deliberately has no coordinate. No photos.",
+    "startup": "Fresh Electron process and isolated profile; filesystem/OS caches are uncontrolled. Map readiness includes local atlas decode, geometry and two animation frames.",
+    "interaction": "Foreground visible Electron window, default GPU settings, three 3-second real mouse drags and three 3-second real wheel sequences, targeting 60 input events/second.",
+    "frames": "requestAnimationFrame deltas include compositor and renderer scheduling; not a GPU trace or an assertion of presented-frame FPS.",
+    "geometry": "MutationObserver counts writes to base SVG d attributes; never copies path strings per frame. Also verifies the base layer survives and viewport transforms actually change."
+  },
+  "fixture": {
+    "trips": 100,
+    "visits": 5000,
+    "places": 5000,
+    "unlocatedVisits": 500,
+    "photos": 0,
+    "litCities": 24,
+    "preparationMs": 2327.228,
+    "snapshotBytes": 2361351,
+    "boundariesSha256": "fdbd420d38aa37fa5b31473d067b94a30bcafee377da7cf1dcf3e725545ea43b",
+    "concordanceSha256": "6d6812469195c2124e1d002a3a71aa9124070aedff734a93afa453d44eb2b02d",
+    "seeds": [
+      {
+        "cityId": "geonames:1808926",
+        "name": "杭州",
+        "lat": 30.29365,
+        "lon": 120.16142,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B159"
+      },
+      {
+        "cityId": "geonames:1816670",
+        "name": "北京",
+        "lat": 39.9075,
+        "lon": 116.39723,
+        "boundaryId": "gb:43563684B17418114845297"
+      },
+      {
+        "cityId": "geonames:1796236",
+        "name": "上海",
+        "lat": 31.22222,
+        "lon": 121.45806,
+        "boundaryId": "gb:43563684B32591653033375"
+      },
+      {
+        "cityId": "geonames:1814906",
+        "name": "重庆",
+        "lat": 29.56026,
+        "lon": 106.55771,
+        "boundaryId": "gb:43563684B97743196909507"
+      },
+      {
+        "cityId": "geonames:1815286",
+        "name": "成都",
+        "lat": 30.66667,
+        "lon": 104.06667,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B20"
+      },
+      {
+        "cityId": "geonames:1809858",
+        "name": "广州",
+        "lat": 23.11667,
+        "lon": 113.25,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B16"
+      },
+      {
+        "cityId": "geonames:1795565",
+        "name": "深圳",
+        "lat": 22.54554,
+        "lon": 114.0683,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B235"
+      },
+      {
+        "cityId": "geonames:1792947",
+        "name": "天津",
+        "lat": 39.14222,
+        "lon": 117.17667,
+        "boundaryId": "gb:43563684B84701301190484"
+      },
+      {
+        "cityId": "geonames:1791247",
+        "name": "武汉",
+        "lat": 30.58333,
+        "lon": 114.26667,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B147"
+      },
+      {
+        "cityId": "geonames:1790630",
+        "name": "西安",
+        "lat": 34.25833,
+        "lon": 108.92861,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B93"
+      },
+      {
+        "cityId": "geonames:2037013",
+        "name": "哈尔滨",
+        "lat": 45.75,
+        "lon": 126.65,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B8"
+      },
+      {
+        "cityId": "geonames:1812545",
+        "name": "东莞",
+        "lat": 23.01797,
+        "lon": 113.74866,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B51"
+      },
+      {
+        "cityId": "geonames:1808722",
+        "name": "合肥",
+        "lat": 31.86389,
+        "lon": 117.28083,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B141"
+      },
+      {
+        "cityId": "geonames:1791681",
+        "name": "潍坊",
+        "lat": 36.71,
+        "lon": 119.10194,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B261"
+      },
+      {
+        "cityId": "geonames:1799962",
+        "name": "南京",
+        "lat": 32.06167,
+        "lon": 118.77778,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B135"
+      },
+      {
+        "cityId": "geonames:2034937",
+        "name": "沈阳",
+        "lat": 41.79222,
+        "lon": 123.43278,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B146"
+      },
+      {
+        "cityId": "geonames:1811103",
+        "name": "仏山市",
+        "lat": 23.02677,
+        "lon": 113.13148,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B290"
+      },
+      {
+        "cityId": "geonames:1805753",
+        "name": "济南",
+        "lat": 36.66833,
+        "lon": 116.99722,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B170"
+      },
+      {
+        "cityId": "geonames:1814087",
+        "name": "大连",
+        "lat": 38.91222,
+        "lon": 121.60222,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B238"
+      },
+      {
+        "cityId": "geonames:1790842",
+        "name": "吴忠",
+        "lat": 37.9867,
+        "lon": 106.201,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B232"
+      },
+      {
+        "cityId": "geonames:1797929",
+        "name": "青岛",
+        "lat": 36.06488,
+        "lon": 120.38042,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B311"
+      },
+      {
+        "cityId": "geonames:1787093",
+        "name": "烟台",
+        "lat": 37.47649,
+        "lon": 121.44081,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B157"
+      },
+      {
+        "cityId": "geonames:1886760",
+        "name": "苏州",
+        "lat": 31.30408,
+        "lon": 120.59538,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B194"
+      },
+      {
+        "cityId": "geonames:1784658",
+        "name": "郑州",
+        "lat": 34.75778,
+        "lon": 113.64861,
+        "boundaryId": "gb:CHN-ADM2-1590546715-B102"
+      }
+    ]
+  },
+  "selectors": {
+    "sqliteSnapshot": {
+      "warmups": 3,
+      "samples": 20,
+      "p50Ms": 7.812,
+      "p95Ms": 12.971,
+      "maxMs": 13.57,
+      "over50Ms": 0
+    },
+    "indexBuild": {
+      "warmups": 10,
+      "samples": 60,
+      "p50Ms": 2.52,
+      "p95Ms": 4.685,
+      "maxMs": 7.549,
+      "over50Ms": 0
+    },
+    "emptySearch": {
+      "warmups": 10,
+      "samples": 60,
+      "p50Ms": 0.005,
+      "p95Ms": 0.005,
+      "maxMs": 0.024,
+      "over50Ms": 0
+    },
+    "stopNameSearch": {
+      "query": "合成停留 04999 · 天津",
+      "expectedTrips": 1,
+      "warmups": 10,
+      "samples": 60,
+      "p50Ms": 1.248,
+      "p95Ms": 2.297,
+      "maxMs": 2.453,
+      "over50Ms": 0
+    },
+    "cityLights": {
+      "warmups": 10,
+      "samples": 60,
+      "p50Ms": 4.953,
+      "p95Ms": 10.206,
+      "maxMs": 16.391,
+      "over50Ms": 0
+    }
+  },
+  "renderer": {
+    "mapReadyMs": 1462.655,
+    "executable": "D:\\aaa_else\\a_project\\MyMap\\release\\win-unpacked\\MyMap.exe",
+    "electronReportedAppVersion": "0.3.0",
+    "electron": "45.0.0",
+    "chrome": "156.0.8078.48",
+    "gpuFeatureStatus": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "visible": true,
+    "focused": true,
+    "windowBounds": {
+      "x": 304,
+      "y": 82,
+      "width": 1440,
+      "height": 942
+    },
+    "width": 1426,
+    "height": 904,
+    "devicePixelRatio": 1.25,
+    "visibilityState": "visible",
+    "hasFocus": true,
+    "basePathCount": 345,
+    "renderedMarkers": 16
+  },
+  "idleCalibration": {
+    "rafIntervals": {
+      "samples": 167,
+      "p50Ms": 6.1,
+      "p95Ms": 6.2,
+      "maxMs": 6.3,
+      "over50Ms": 0
+    },
+    "estimatedRefreshHz": 163.934,
+    "visibilityState": "visible",
+    "hasFocus": true
+  },
+  "interactions": [
+    {
+      "trial": 1,
+      "kind": "drag",
+      "requestedInputDurationMs": 3000,
+      "inputDurationMs": 3015.482,
+      "sampledDurationMs": 3024.7,
+      "rafIntervals": {
+        "samples": 491,
+        "p50Ms": 6.1,
+        "p95Ms": 6.2,
+        "maxMs": 48.5,
+        "over50Ms": 0
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 0,
+        "over50Ms": 0,
+        "maxMs": 0
+      },
+      "pathDWrites": 0,
+      "viewportTransformWrites": 114,
+      "pointerMoves": 115,
+      "wheelEvents": 0,
+      "actualInputEventsPerSecond": 38.137,
+      "baseLayerRetained": true,
+      "visibilityState": "visible",
+      "hasFocus": true,
+      "startTransform": "translate(0 0) scale(1)",
+      "endTransform": "translate(-6.414026897915278 -0.09979248046875) scale(1)"
+    },
+    {
+      "trial": 1,
+      "kind": "zoom",
+      "requestedInputDurationMs": 3000,
+      "inputDurationMs": 3203.237,
+      "sampledDurationMs": 3266.4,
+      "rafIntervals": {
+        "samples": 280,
+        "p50Ms": 6.1,
+        "p95Ms": 66.6,
+        "maxMs": 109.2,
+        "over50Ms": 17
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 2,
+        "over50Ms": 2,
+        "maxMs": 107
+      },
+      "pathDWrites": 0,
+      "viewportTransformWrites": 18,
+      "pointerMoves": 0,
+      "wheelEvents": 18,
+      "actualInputEventsPerSecond": 5.619,
+      "baseLayerRetained": true,
+      "visibilityState": "visible",
+      "hasFocus": true,
+      "startTransform": "translate(0 0) scale(1)",
+      "endTransform": "translate(0 5.684341886080802e-14) scale(1)"
+    },
+    {
+      "trial": 2,
+      "kind": "drag",
+      "requestedInputDurationMs": 3000,
+      "inputDurationMs": 3016.942,
+      "sampledDurationMs": 3028.4,
+      "rafIntervals": {
+        "samples": 426,
+        "p50Ms": 6.1,
+        "p95Ms": 6.2,
+        "maxMs": 48.7,
+        "over50Ms": 0
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 1,
+        "over50Ms": 1,
+        "maxMs": 51
+      },
+      "pathDWrites": 0,
+      "viewportTransformWrites": 102,
+      "pointerMoves": 102,
+      "wheelEvents": 0,
+      "actualInputEventsPerSecond": 33.809,
+      "baseLayerRetained": true,
+      "visibilityState": "visible",
+      "hasFocus": true,
+      "startTransform": "translate(0 0) scale(1)",
+      "endTransform": "translate(-5.7975752415040915 -0.08154296875) scale(1)"
+    },
+    {
+      "trial": 2,
+      "kind": "zoom",
+      "requestedInputDurationMs": 3000,
+      "inputDurationMs": 3153.446,
+      "sampledDurationMs": 3244.7,
+      "rafIntervals": {
+        "samples": 264,
+        "p50Ms": 6.1,
+        "p95Ms": 66.7,
+        "maxMs": 115.1,
+        "over50Ms": 19
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 3,
+        "over50Ms": 3,
+        "maxMs": 107
+      },
+      "pathDWrites": 0,
+      "viewportTransformWrites": 18,
+      "pointerMoves": 0,
+      "wheelEvents": 18,
+      "actualInputEventsPerSecond": 5.708,
+      "baseLayerRetained": true,
+      "visibilityState": "visible",
+      "hasFocus": true,
+      "startTransform": "translate(0 0) scale(1)",
+      "endTransform": "translate(19.808396993615588 10.296745890259103) scale(0.9646402934831231)"
+    },
+    {
+      "trial": 3,
+      "kind": "drag",
+      "requestedInputDurationMs": 3000,
+      "inputDurationMs": 3019.02,
+      "sampledDurationMs": 3032.5,
+      "rafIntervals": {
+        "samples": 407,
+        "p50Ms": 6.1,
+        "p95Ms": 6.2,
+        "maxMs": 97,
+        "over50Ms": 4
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 3,
+        "over50Ms": 3,
+        "maxMs": 94
+      },
+      "pathDWrites": 0,
+      "viewportTransformWrites": 96,
+      "pointerMoves": 96,
+      "wheelEvents": 0,
+      "actualInputEventsPerSecond": 31.798,
+      "baseLayerRetained": true,
+      "visibilityState": "visible",
+      "hasFocus": true,
+      "startTransform": "translate(0 0) scale(1)",
+      "endTransform": "translate(-5.484710767171009 -0.072998046875) scale(1)"
+    },
+    {
+      "trial": 3,
+      "kind": "zoom",
+      "requestedInputDurationMs": 3000,
+      "inputDurationMs": 3161.878,
+      "sampledDurationMs": 3243.9,
+      "rafIntervals": {
+        "samples": 262,
+        "p50Ms": 6.1,
+        "p95Ms": 66.7,
+        "maxMs": 145.5,
+        "over50Ms": 18
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 1,
+        "over50Ms": 1,
+        "maxMs": 148
+      },
+      "pathDWrites": 0,
+      "viewportTransformWrites": 18,
+      "pointerMoves": 0,
+      "wheelEvents": 18,
+      "actualInputEventsPerSecond": 5.693,
+      "baseLayerRetained": true,
+      "visibilityState": "visible",
+      "hasFocus": true,
+      "startTransform": "translate(0 0) scale(1)",
+      "endTransform": "translate(19.808396993615588 10.296745890259103) scale(0.9646402934831231)"
+    }
+  ],
+  "screenshots": [
+    "docs/screenshots/v0.3.0/map-overview.png",
+    "docs/screenshots/v0.3.0/map-city-detail.png"
+  ],
+  "temporaryProfileCleaned": true,
+  "finishedAt": "2026-10-25T19:11:31.238Z"
+}

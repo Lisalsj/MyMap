@@ -1,0 +1,47 @@
+{
+  "version": "0.3.0",
+  "verifiedAtUtc": "2026-10-25T19:21:30.9510438Z",
+  "release": "https://github.com/Lisalsj/MyMap/releases/tag/v0.3.0",
+  "sourceCommit": "b730fcc5f82446350dbc65b2a276077bc43ee48d",
+  "publicRepository": true,
+  "publicDownloads": [
+    {
+      "name": "MyMap-0.3.0-Portable-x64.exe",
+      "status": 200,
+      "bytes": 115364733,
+      "sha256": "sha256:ccab5192605ab0d31931e75e4d334c77554220f14704c9d4a1df44f550c0875a",
+      "url": "https://github.com/Lisalsj/MyMap/releases/download/v0.3.0/MyMap-0.3.0-Portable-x64.exe"
+    },
+    {
+      "name": "MyMap-0.3.0-Setup-x64.exe",
+      "status": 200,
+      "bytes": 115592353,
+      "sha256": "sha256:1c53c9db59c4a46b84df46869c0e68d5c5d7afb5784cbba398d013a125fce124",
+      "url": "https://github.com/Lisalsj/MyMap/releases/download/v0.3.0/MyMap-0.3.0-Setup-x64.exe"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "status": 200,
+      "bytes": 187,
+      "sha256": "sha256:398176e3affb6ba0913730e814d8fc07ae247991676d2411b5c4192118ebdd70",
+      "url": "https://github.com/Lisalsj/MyMap/releases/download/v0.3.0/SHA256SUMS.txt"
+    }
+  ],
+  "windowsRuns": [
+    {
+      "id": 40224450327,
+      "branch": "v0.3.0",
+      "commit": "b730fcc5f82446350dbc65b2a276077bc43ee48d",
+      "conclusion": "success",
+      "url": "https://github.com/Lisalsj/MyMap/actions/runs/40224450327"
+    },
+    {
+      "id": 40224450040,
+      "branch": "main",
+      "commit": "b730fcc5f82446350dbc65b2a276077bc43ee48d",
+      "conclusion": "success",
+      "url": "https://github.com/Lisalsj/MyMap/actions/runs/40224450040"
+    }
+  ],
+  "checksumVerification": "Downloaded public SHA256SUMS.txt and matched all executable checksums against GitHub asset server SHA-256 digests. Local builds have separate checksums."
+}
