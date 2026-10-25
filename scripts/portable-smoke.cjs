@@ -74,7 +74,7 @@ async function main() {
     }
   }
   const report = {
-    date: '2026-10-25',
+    date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }),
     version,
     executable: require('node:path').basename(executable),
     launches: 2,

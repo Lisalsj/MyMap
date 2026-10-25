@@ -9,6 +9,7 @@ const roots: string[] = []
 const rendererEntries = [
   '@fontsource/noto-serif-sc',
   'd3-geo',
+  'topojson-client',
   'lucide-react',
   'react',
   'react-dom',

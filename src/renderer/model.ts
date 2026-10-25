@@ -1,4 +1,6 @@
 import type { AppSnapshot, City, Entry, Trip, Visit, VisitInput } from '../shared/types'
+import { getSnapshotIndex } from './snapshotIndex'
+export { createSnapshotIndex, getSnapshotIndex, type SnapshotIndex } from './snapshotIndex'
 
 export const manualCityId = (name: string, country: string) =>
   `manual:${country.normalize('NFKC').trim().toLowerCase()}:${name.normalize('NFKC').trim().toLowerCase()}`
@@ -58,34 +60,21 @@ export function buildVisitInput(form: VisitForm): VisitInput {
   }
 }
 
-export const activeTrips = (s: AppSnapshot) =>
-  s.trips
-    .filter((t) => !t.deletedAt)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt))
-export const activeVisits = (s: AppSnapshot) => {
-  const ids = new Set(activeTrips(s).map((t) => t.id))
-  return s.visits.filter((v) => ids.has(v.tripId) && s.places.some((p) => p.id === v.placeId))
-}
-export const activeEntries = (s: AppSnapshot) => {
-  const ids = new Set(activeTrips(s).map((t) => t.id))
-  return s.entries.filter((e) => !e.deletedAt && ids.has(e.tripId))
-}
-export const activeAttachments = (s: AppSnapshot) => {
-  const ids = new Set(activeTrips(s).map((t) => t.id))
-  const photos = new Set(s.photos.filter((p) => !p.deletedAt).map((p) => p.id))
-  return s.attachments.filter((a) => !a.deletedAt && ids.has(a.tripId) && photos.has(a.photoId))
-}
-export const orderedVisits = (s: AppSnapshot, tripId: string) =>
-  activeVisits(s)
-    .filter((v) => v.tripId === tripId)
-    .sort((a, b) => a.sortOrder - b.sortOrder)
+export const activeTrips = (s: AppSnapshot) => [...getSnapshotIndex(s).activeTrips]
+export const activeVisits = (s: AppSnapshot) => [...getSnapshotIndex(s).activeVisits]
+export const activeEntries = (s: AppSnapshot) => [...getSnapshotIndex(s).activeEntries]
+export const activeAttachments = (s: AppSnapshot) => [...getSnapshotIndex(s).activeAttachments]
+export const orderedVisits = (s: AppSnapshot, tripId: string) => [
+  ...(getSnapshotIndex(s).orderedVisitsByTrip.get(tripId) || [])
+]
 export function passport(s: AppSnapshot) {
+  const index = getSnapshotIndex(s)
   const byCity = new Map<
     string,
     { cityId: string; name: string; country: string; date: string; count: number }
   >()
-  for (const v of activeVisits(s)) {
-    const p = s.places.find((p) => p.id === v.placeId)!
+  for (const v of index.activeVisits) {
+    const p = index.placeById.get(v.placeId)!
     if (!p.cityId) continue
     const old = byCity.get(p.cityId)
     byCity.set(p.cityId, {
@@ -105,25 +94,24 @@ export const tripDates = (t: Trip) =>
 export const matches = (value: string, query: string) =>
   value.toLocaleLowerCase().includes(query.trim().toLowerCase())
 export function matchingTrips(s: AppSnapshot, query: string, year = '', cityId = '') {
-  return activeTrips(s).filter((t) => {
-    const visits = orderedVisits(s, t.id)
-    const places = visits.map((v) => s.places.find((p) => p.id === v.placeId)!)
+  const index = getSnapshotIndex(s)
+  const normalizedQuery = query.trim().toLowerCase()
+  return index.activeTrips.filter((t) => {
+    const visits = index.visitsByTrip.get(t.id) || []
     return (
       (!year ||
         (visits.length
           ? visits.some((v) => effectiveVisitDate(v, t).startsWith(year))
           : t.startDate.startsWith(year))) &&
-      (!cityId || places.some((p) => p.cityId === cityId)) &&
-      (!query.trim() ||
+      (!cityId || visits.some((visit) => index.placeById.get(visit.placeId)!.cityId === cityId)) &&
+      (!normalizedQuery ||
         [
           t.title,
           t.description,
           ...t.tags,
-          ...places.map((p) => p.name),
-          ...activeEntries(s)
-            .filter((e) => e.tripId === t.id)
-            .flatMap((e) => [e.title, e.markdown])
-        ].some((x) => matches(x, query)))
+          ...visits.map((visit) => index.placeById.get(visit.placeId)!.name),
+          ...(index.entriesByTrip.get(t.id) || []).flatMap((e) => [e.title, e.markdown])
+        ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery)))
     )
   })
 }

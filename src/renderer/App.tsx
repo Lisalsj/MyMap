@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDown,
   ArrowLeft,
@@ -40,10 +40,23 @@ import {
   effectiveVisitDate
 } from './model'
 import { Cover, Empty, Modal, Spinner } from './components/Common'
-import { TripEditor, VisitEditor, type InitialVisit } from './components/Editors'
+import type { InitialVisit } from './components/Editors'
 import { FootprintMap } from './components/FootprintMap'
-import { Gallery } from './components/Gallery'
-import { Journal } from './components/Journal'
+import { getSnapshotIndex } from './snapshotIndex'
+const Gallery = lazy(() => import('./components/Gallery').then((module) => ({ default: module.Gallery })))
+const Journal = lazy(() => import('./components/Journal').then((module) => ({ default: module.Journal })))
+const TripEditor = lazy(() =>
+  import('./components/Editors').then((module) => ({ default: module.TripEditor }))
+)
+const VisitEditor = lazy(() =>
+  import('./components/Editors').then((module) => ({ default: module.VisitEditor }))
+)
+const loadingPage = (
+  <div className="lazy-page-loading" role="status">
+    <Spinner />
+    <span>正在展开这一页…</span>
+  </div>
+)
 
 type Page = 'map' | 'trips' | 'journal' | 'gallery' | 'passport' | 'settings'
 const navigation: { id: Page; label: string; icon: typeof Map; hint: string }[] = [
@@ -196,6 +209,37 @@ export default function App() {
         : s
     )
   }
+  const derived = useMemo(() => {
+    if (!snapshot) return null
+    const index = getSnapshotIndex(snapshot)
+    const trips = activeTrips(snapshot),
+      visits = activeVisits(snapshot)
+    return {
+      index,
+      trips,
+      visits,
+      entries: activeEntries(snapshot),
+      attachments: activeAttachments(snapshot),
+      stamps: passport(snapshot),
+      years: [
+        ...new Set(
+          [
+            ...trips.filter((t) => !index.visitsByTrip.has(t.id)).map((t) => t.startDate.slice(0, 4)),
+            ...visits.map((v) => effectiveVisitDate(v, index.tripById.get(v.tripId)!).slice(0, 4))
+          ].filter(Boolean)
+        )
+      ]
+        .sort()
+        .reverse()
+    }
+  }, [snapshot])
+  const filteredTrips = useMemo(
+    () =>
+      snapshot
+        ? matchingTrips(snapshot, query, year, cityId).filter((t) => !selectedTrip || t.id === selectedTrip)
+        : [],
+    [snapshot, query, year, cityId, selectedTrip]
+  )
   if (!snapshot)
     return (
       <div className="loading-screen">
@@ -221,30 +265,8 @@ export default function App() {
         )}
       </div>
     )
-  const trips = activeTrips(snapshot),
-    visits = activeVisits(snapshot),
-    entries = activeEntries(snapshot),
-    attachments = activeAttachments(snapshot),
-    stamps = passport(snapshot),
-    filteredTrips = matchingTrips(snapshot, query, year, cityId).filter(
-      (t) => !selectedTrip || t.id === selectedTrip
-    ),
-    trip = trips.find((t) => t.id === selectedTrip),
-    years = [
-      ...new Set(
-        [
-          ...trips.filter((t) => !visits.some((v) => v.tripId === t.id)).map((t) => t.startDate.slice(0, 4)),
-          ...visits.map((v) =>
-            effectiveVisitDate(
-              v,
-              trips.find((t) => t.id === v.tripId)!
-            ).slice(0, 4)
-          )
-        ].filter(Boolean)
-      )
-    ]
-      .sort()
-      .reverse(),
+  const { index, trips, visits, entries, attachments, stamps, years } = derived!
+  const trip = index.activeTripIds.has(selectedTrip) ? index.tripById.get(selectedTrip) : undefined,
     currentNav = navigation.find((n) => n.id === page)
   const searchResults = query.trim()
     ? [
@@ -263,20 +285,20 @@ export default function App() {
           .map((e) => ({
             id: 'e' + e.id,
             label: e.title,
-            sub: '手记 · ' + trips.find((t) => t.id === e.tripId)?.title,
+            sub: '手记 · ' + index.tripById.get(e.tripId)?.title,
             icon: BookOpen,
             open: () => openEntry(e.id)
           })),
         ...visits
           .filter((v) => {
-            const p = snapshot.places.find((p) => p.id === v.placeId)
+            const p = index.placeById.get(v.placeId)
             return p && matches(p.name + ' ' + p.cityName, query)
           })
           .slice(0, 4)
           .map((v) => ({
             id: 'v' + v.id,
-            label: snapshot.places.find((p) => p.id === v.placeId)!.name,
-            sub: '足迹 · ' + trips.find((t) => t.id === v.tripId)?.title,
+            label: index.placeById.get(v.placeId)!.name,
+            sub: '足迹 · ' + index.tripById.get(v.tripId)?.title,
             icon: MapPin,
             open: () => openTrip(v.tripId)
           }))
@@ -536,12 +558,12 @@ export default function App() {
                 <section className="map-card">
                   <div className="map-card-heading">
                     <div>
-                      <span className="eyebrow">MY FOOTPRINTS</span>
-                      <h2>一步一印，皆是风景</h2>
+                      <span className="eyebrow">A LITTLE MORE OF THE WORLD, MINE</span>
+                      <h2>走过一座城，点亮一片回忆</h2>
                     </div>
                     <span className="map-pill">
                       <span />
-                      我的足迹
+                      我的城市版图
                     </span>
                   </div>
                   <div className="home-map">
@@ -563,7 +585,7 @@ export default function App() {
                   <div className="map-bottom-note">
                     <span>
                       <span className="legend-dot" />
-                      到访过的城市
+                      市域点亮 · 城市回忆
                     </span>
                     <span>
                       你的世界，正在一点点展开 <Globe2 size={13} />
@@ -711,26 +733,30 @@ export default function App() {
               />
             ))}
           {page === 'journal' && (
-            <Journal
-              snapshot={snapshot}
-              entryId={entryId}
-              tripId={selectedTrip}
-              setEntryId={setEntryId}
-              onSaved={updateEntry}
-              registerFlush={registerFlush}
-              run={run}
-              refresh={refresh}
-              confirmTrash={(id) => trash('entry', id)}
-            />
+            <Suspense fallback={loadingPage}>
+              <Journal
+                snapshot={snapshot}
+                entryId={entryId}
+                tripId={selectedTrip}
+                setEntryId={setEntryId}
+                onSaved={updateEntry}
+                registerFlush={registerFlush}
+                run={run}
+                refresh={refresh}
+                confirmTrash={(id) => trash('entry', id)}
+              />
+            </Suspense>
           )}
           {page === 'gallery' && (
-            <Gallery
-              snapshot={snapshot}
-              tripId={selectedTrip}
-              run={run}
-              refresh={refresh}
-              confirmTrash={(id) => trash('attachment', id)}
-            />
+            <Suspense fallback={loadingPage}>
+              <Gallery
+                snapshot={snapshot}
+                tripId={selectedTrip}
+                run={run}
+                refresh={refresh}
+                confirmTrash={(id) => trash('attachment', id)}
+              />
+            </Suspense>
           )}
           {page === 'passport' && (
             <Passport
@@ -763,34 +789,38 @@ export default function App() {
         </div>
       </main>
       {tripEditor !== false && (
-        <TripEditor
-          trip={tripEditor || undefined}
-          onClose={() => setTripEditor(false)}
-          onSave={async (input) => {
-            await flushRef.current()
-            const t = await window.myMap.saveTrip(input)
-            await refresh()
-            if (tripEditor === null) {
-              setSelectedTrip(t.id)
-              setPage('trips')
-              setDetail(true)
-            }
-            notify('旅行已保存')
-          }}
-        />
+        <Suspense fallback={loadingPage}>
+          <TripEditor
+            trip={tripEditor || undefined}
+            onClose={() => setTripEditor(false)}
+            onSave={async (input) => {
+              await flushRef.current()
+              const t = await window.myMap.saveTrip(input)
+              await refresh()
+              if (tripEditor === null) {
+                setSelectedTrip(t.id)
+                setPage('trips')
+                setDetail(true)
+              }
+              notify('旅行已保存')
+            }}
+          />
+        </Suspense>
       )}
       {visitEditor && (
-        <VisitEditor
-          tripId={visitEditor.tripId}
-          coordinates={visitEditor.coordinates}
-          initial={visitEditor.initial}
-          onClose={() => setVisitEditor(null)}
-          onSave={async (input) => {
-            await window.myMap.saveVisit(input)
-            await refresh()
-            notify('又一个地方，成为了回忆')
-          }}
-        />
+        <Suspense fallback={loadingPage}>
+          <VisitEditor
+            tripId={visitEditor.tripId}
+            coordinates={visitEditor.coordinates}
+            initial={visitEditor.initial}
+            onClose={() => setVisitEditor(null)}
+            onSave={async (input) => {
+              await window.myMap.saveVisit(input)
+              await refresh()
+              notify('又一个地方，成为了回忆')
+            }}
+          />
+        </Suspense>
       )}
       {confirmation && (
         <Modal

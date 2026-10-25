@@ -507,7 +507,7 @@ small {
 }
 .home-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 273px;
+  grid-template-columns: minmax(0, 1fr) 245px;
   gap: 21px;
   align-items: stretch;
 }
@@ -555,10 +555,25 @@ small {
   background: #7e9c6a;
 }
 .home-map {
-  min-height: 326px;
+  min-height: 480px;
   flex: 1;
   display: flex;
   position: relative;
+}
+.lazy-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 180px;
+  color: #84937c;
+  font-size: 12px;
+}
+.map-card-heading .eyebrow {
+  color: #8b9e87;
+}
+.map-card-heading h2 {
+  letter-spacing: 1.5px;
 }
 .home-map > * {
   width: 100%;

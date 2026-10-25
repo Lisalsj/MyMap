@@ -30,5 +30,160 @@
     "sourceBytes": 9941047,
     "sourceSha256": "b6bca07fef2449355b00a60390af8d308c32d1f4b311b1cecc9d02d9a154efc4",
     "canonicalCitySha256": "ee82464e2ba08e047bba320b6b43207905ca45ff33db543ba5c6f73bf4594709"
+  },
+  "boundary": {
+    "format": "TopoJSON",
+    "version": 1,
+    "sourceYear": "2017",
+    "coordinates": "WGS84 longitude/latitude",
+    "retrieved": "2026-10-25",
+    "license": "ODbL-1.0; GeoNames names/concordance CC-BY-4.0; Public Domain province supplement",
+    "attribution": "geoBoundaries; © OpenStreetMap contributors; Wambacher; GeoNames",
+    "sources": {
+      "prefectures": {
+        "url": "https://www.geoboundaries.org/data/geoBoundaries-3_0_0/CHN/ADM2/geoBoundaries-3_0_0-CHN-ADM2.topojson",
+        "bytes": 6385396,
+        "sha256": "66b46dbef906ff57e212ebc57872a877c7d2e03a0e84aa4fbb96ae68b8a573c7",
+        "year": "2017",
+        "license": "ODbL-1.0",
+        "attribution": "geoBoundaries; © OpenStreetMap contributors; Wambacher",
+        "metadata": "https://www.geoboundaries.org/data/geoBoundaries-3_0_0/CHN/ADM2/geoBoundaries-3_0_0-CHN-ADM2-metaData.json"
+      },
+      "municipalities2017": {
+        "url": "https://www.geoboundaries.org/data/geoBoundaries-3_0_0/CHN/ADM1/geoBoundaries-3_0_0-CHN-ADM1.topojson",
+        "bytes": 4582705,
+        "sha256": "67cb081f05568c52b550a2615ff5d780fedc7ef1121b2910c63118563a135bfb",
+        "year": "2017",
+        "license": "ODbL-1.0",
+        "attribution": "geoBoundaries; © OpenStreetMap contributors; Wambacher",
+        "metadata": "https://www.geoboundaries.org/data/geoBoundaries-3_0_0/CHN/ADM1/geoBoundaries-3_0_0-CHN-ADM1-metaData.json"
+      },
+      "provinces": {
+        "url": "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/CHN/ADM1/geoBoundaries-CHN-ADM1.geojson",
+        "bytes": 270578,
+        "sha256": "3a00467a0db9b4136facb5f2f3d0edbfd96adb15651cfdf63991da9281030e85",
+        "year": "2019",
+        "license": "Public Domain (source); geoBoundaries attribution retained",
+        "attribution": "geoBoundaries; Wikimedia Commons",
+        "metadata": "https://www.geoboundaries.org/api/current/gbOpen/CHN/ADM1/"
+      }
+    },
+    "geoNamesSnapshot": {
+      "file": "cities.json.gz",
+      "sha256": "d83ea89c5be36f90091200cb235556ba77e8363d16ce369994cfd583c33e0001"
+    },
+    "coverage": {
+      "originalFeatures": 340,
+      "unionedHongKongSubregions": [
+        "Hong Kong Island",
+        "Kowloon",
+        "New Territories"
+      ],
+      "removedMacauSubregions": [
+        "Coloane",
+        "Taipa"
+      ],
+      "prefectures": 334,
+      "wholeRegionSources": {
+        "hongKong": {
+          "year": "2017",
+          "source": "prefectures",
+          "sourceObjects": [
+            "Hong Kong Island",
+            "Kowloon",
+            "New Territories"
+          ],
+          "method": "Merge existing shared source arcs; use identical geometry in city and province layers"
+        },
+        "municipalities": {
+          "year": "2017",
+          "source": "municipalities2017",
+          "sourceObjects": [
+            "Beijing",
+            "Tianjin",
+            "Shanghai",
+            "Chongqing"
+          ],
+          "method": "Use complete same-year ADM1 polygons in city and province layers; retain existing region ids"
+        },
+        "macau": {
+          "year": "2019",
+          "source": "provinces",
+          "limitation": "Generalized whole-SAR outline; its precision is lower than the 2017 OSM city layer. No known city-centre overlap in the bundled GeoNames snapshot."
+        },
+        "remainingProvinceSkeleton": {
+          "year": "2019",
+          "source": "provinces",
+          "divisionLines": "Renderer derives province divisions from city shared arcs whose neighbors have different audited provinces"
+        }
+      },
+      "prefectureRestoration": {
+        "sourceObjects": [
+          "Ngari Prefecture",
+          "Zanda County"
+        ],
+        "result": "Ngari Prefecture",
+        "method": "Aggregate the original polygon parts into one MultiPolygon feature; shared internal arcs have the same region id and are excluded from the city boundary mesh",
+        "membershipReference": "https://www.xizang.gov.cn/xwzx_406/qxxw/202402/t20240210_403584.html"
+      },
+      "municipalities": 4,
+      "specialAdministrativeRegions": 2,
+      "cityRegions": 340,
+      "provinceRegions": 34,
+      "matchedGeoNamesPoints": 2247,
+      "taiwan": "Province outline only; no city boundary or GeoNames-to-city mapping.",
+      "historicalExceptions": [
+        "Laiwu is a separate 2017 boundary; no silent union into Jinan.",
+        "Provincially administered counties/cities missing from the source remain uncovered."
+      ],
+      "warning": "Historical generalized administrative reference, not current official boundaries; no synthetic filling of gaps. Macau remains a generalized 2019 whole-SAR outline.",
+      "reviewedConcordance": [
+        {
+          "source": "Taizhou City",
+          "province": "浙江省",
+          "name": "台州",
+          "geonames": "8400694",
+          "reason": "Modern gazetteer city point is outside the generalized 2017 polygon; identity confirmed by city name and province. Geometry unchanged."
+        }
+      ]
+    },
+    "simplification": {
+      "method": "Shared TopoJSON arcs; spherical triangle area; minimum three distinct points per ring",
+      "minWeightSteradians": 1e-10,
+      "quantization": 1000000
+    },
+    "labelNormalization": {
+      "tool": "opencc-js",
+      "version": "1.4.2",
+      "from": "tw",
+      "to": "cn",
+      "preservesTraditionalAliases": true
+    },
+    "prefectureLabels": {
+      "method": "334 audited formal names and provinces keyed by pinned source shapeID and sourceName; no first-Han or coarse-province inference",
+      "correctedLabels": 37,
+      "provinceCorrections": [
+        {
+          "sourceName": "Siping City",
+          "province": "吉林省"
+        }
+      ],
+      "historicalNamePolicy": "2017 names: Hami is 哈密市 (2016 conversion); Nagqu remains 那曲地区; Laiwu remains independent."
+    },
+    "assets": {
+      "topology": {
+        "file": "src/renderer/assets/china-cities.topo.json",
+        "bytes": 3890664,
+        "gzipBytes": 1255163,
+        "sha256": "fdbd420d38aa37fa5b31473d067b94a30bcafee377da7cf1dcf3e725545ea43b"
+      },
+      "index": {
+        "file": "src/renderer/assets/china-city-index.json",
+        "bytes": 296825,
+        "gzipBytes": 37435,
+        "sha256": "6d6812469195c2124e1d002a3a71aa9124070aedff734a93afa453d44eb2b02d"
+      }
+    },
+    "reproduction": "node scripts/prepare-boundaries.mjs"
   }
 }

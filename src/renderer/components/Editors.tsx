@@ -321,6 +321,7 @@ export function VisitEditor({
             )}
           </>
         )}
+        {manual && <p className="muted">填写国家或地区，有助于在地图上点亮城市；不确定也可以先保存。</p>}
         {selectedCity && (
           <div className="section-title">
             <p className="selected-city">

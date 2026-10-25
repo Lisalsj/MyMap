@@ -5,6 +5,7 @@ const path = require('node:path')
 const rendererEntries = [
   '@fontsource/noto-serif-sc',
   'd3-geo',
+  'topojson-client',
   'lucide-react',
   'react',
   'react-dom',

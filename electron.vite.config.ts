@@ -13,5 +13,5 @@ export default defineConfig({
     }
   },
   preload: { plugins: [externalizeDepsPlugin()] },
-  renderer: { plugins: [react()], build: { assetsInlineLimit: 0 } }
+  renderer: { plugins: [react()], build: { assetsInlineLimit: 0, minify: true } }
 })

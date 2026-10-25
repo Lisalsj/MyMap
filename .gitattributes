@@ -3,3 +3,5 @@
 *.jpg binary
 *.ico binary
 *.woff2 binary
+# Preserve upstream license formatting, including intentional trailing blanks.
+resources/licenses/** -whitespace

@@ -1,0 +1,20 @@
+MyMap boundary database
+
+Historical city boundaries: geoBoundaries 3.0.0, CHN ADM2, representing 2017.
+Source: OpenStreetMap, Wambacher. © OpenStreetMap contributors.
+https://www.geoboundaries.org/
+https://www.openstreetmap.org/copyright
+Source license: ODbL 1.0; this derivative boundary database remains ODbL 1.0.
+
+Whole municipalities: geoBoundaries 3.0.0 CHN ADM1, representing 2017, OpenStreetMap/Wambacher, ODbL 1.0. Hong Kong: union of the three 2017 CHN ADM2 source objects using shared source arcs. These five geometries are identical in city and province objects. Remaining provinces and the whole Macau outline: geoBoundaries fixed commit 9469f09, CHN ADM1, representing 2019; original source Wikimedia Commons / geoBoundaries, Public Domain. Macau is a lower-precision generalized reference. geoBoundaries attribution retained.
+
+Chinese city names and point-to-boundary concordance: GeoNames, CC BY 4.0.
+https://www.geonames.org/
+
+Changes: merge the original Hong Kong Island, Kowloon and New Territories source arcs; replace the two Macau subregions with a whole-SAR reference; unite source Zanda County parts with Ngari Prefecture; add four same-year whole municipalities; 334 audited formal names and provinces, Chinese labels and GeoNames concordance; shared topology, spherical simplification and quantization. Result: 334 prefecture regions plus 4 municipalities and 2 SARs (340 total). No synthetic city boundaries. Taiwan is a province-level outline only. Historical Laiwu remains separate. An explicit Taizhou/Zhejiang identity concordance handles a gazetteer point outside the generalized historical coastline without moving the boundary.
+
+The MIT license for MyMap's program code does not replace the above data licenses.
+Reproduction and alteration method: https://github.com/Lisalsj/MyMap/blob/main/scripts/prepare-boundaries.mjs
+Machine-readable derivative data: src/renderer/assets/china-cities.topo.json and china-city-index.json in the same repository.
+
+Display labels are normalized to Simplified Chinese using opencc-js (tw to cn) at build time; original Traditional Chinese names remain in aliases and the concordance index.

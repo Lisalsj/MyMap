@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { geoMercator, geoPath } from 'd3-geo'
-import {
-  clusterMarkers,
-  selectMapVisits,
-  routeGeometry,
-  validCoordinate
-} from '../src/renderer/components/FootprintMap'
+import { clusterMarkers, selectMapVisits, routeGeometry, validCoordinate } from '../src/renderer/map/domain'
 import type { AppSnapshot } from '../src/shared/types'
 
 describe('offline map geometry', () => {
