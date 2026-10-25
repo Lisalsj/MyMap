@@ -32,7 +32,9 @@
 - [x] 地图视图：固定基准投影缓存陆地/区域/边界路径；平移只更新 transform，每帧最多一次；屏幕层显示标记与标签。
 - [x] 应用整合：按需加载手账、照片馆和编辑器；地图资料按需加载并显示加载/失败状态；保留手记保存及退出保护。
 - [x] 本地验收：122 项测试、真实打包程序操作、地图截图、规模性能与包体比较、v0.2.0 安装及免安装成品。
-- [ ] 发布：GitHub 源码、v0.2.0 标签、Windows CI、Release 附件与 SHA-256。
+- [x] 发布：GitHub 源码、v0.2.0 标签、两次 Windows CI 均成功，Release 的两种程序及 SHA-256 已公开并验证。
+
+发布结果：[v0.2.0](https://github.com/Lisalsj/MyMap/releases/tag/v0.2.0)。[公开下载与校验记录](../reports/release-v0.2.0.json)；[标签构建](https://github.com/Lisalsj/MyMap/actions/runs/40218911566)。
 
 ## 验收
 
