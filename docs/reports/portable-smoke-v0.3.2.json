@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-26",
+  "version": "0.3.2",
+  "executable": "MyMap-0.3.2-Portable-x64.exe",
+  "launches": 2,
+  "launchAndUiReadyMs": [
+    7971,
+    7432
+  ],
+  "persistence": "passed",
+  "externalNetworkBlocked": true,
+  "cleanExit": true
+}
