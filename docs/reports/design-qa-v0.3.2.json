@@ -1,0 +1,375 @@
+{
+  "version": "0.3.2",
+  "executable": "D:\\aaa_else\\a_project\\MyMap\\release\\win-unpacked\\MyMap.exe",
+  "electronReportedAppVersion": "0.3.2",
+  "generatedAtUtc": "2026-10-26T06:53:10.506Z",
+  "environment": "Windows Electron; visible foreground window and isolated fictional demo library; GPU disabled for deterministic screenshots; native viewport captures; zoom is Electron webContents zoom, not a change to OS display settings.",
+  "checks": [
+    {
+      "page": "map-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trips-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "journal-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "gallery-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "passport-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "settings-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "photo-detail-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trip-detail-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "visit-editor-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trip-editor-1440-100",
+      "viewport": {
+        "width": 1426,
+        "height": 904,
+        "dpr": 1.25
+      },
+      "documentWidth": 1411,
+      "clientWidth": 1411,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "map-1100-100",
+      "viewport": {
+        "width": 1088,
+        "height": 764,
+        "dpr": 1.25
+      },
+      "documentWidth": 1073,
+      "clientWidth": 1073,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trips-1100-100",
+      "viewport": {
+        "width": 1088,
+        "height": 764,
+        "dpr": 1.25
+      },
+      "documentWidth": 1073,
+      "clientWidth": 1073,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "journal-1100-100",
+      "viewport": {
+        "width": 1088,
+        "height": 764,
+        "dpr": 1.25
+      },
+      "documentWidth": 1073,
+      "clientWidth": 1073,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "gallery-1100-100",
+      "viewport": {
+        "width": 1088,
+        "height": 764,
+        "dpr": 1.25
+      },
+      "documentWidth": 1073,
+      "clientWidth": 1073,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "passport-1100-100",
+      "viewport": {
+        "width": 1088,
+        "height": 764,
+        "dpr": 1.25
+      },
+      "documentWidth": 1073,
+      "clientWidth": 1073,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "settings-1100-100",
+      "viewport": {
+        "width": 1088,
+        "height": 764,
+        "dpr": 1.25
+      },
+      "documentWidth": 1073,
+      "clientWidth": 1073,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "map-1100-125",
+      "viewport": {
+        "width": 870,
+        "height": 611,
+        "dpr": 1.5625
+      },
+      "documentWidth": 858,
+      "clientWidth": 858,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trips-1100-125",
+      "viewport": {
+        "width": 870,
+        "height": 611,
+        "dpr": 1.5625
+      },
+      "documentWidth": 858,
+      "clientWidth": 858,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "journal-1100-125",
+      "viewport": {
+        "width": 870,
+        "height": 611,
+        "dpr": 1.5625
+      },
+      "documentWidth": 858,
+      "clientWidth": 858,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "gallery-1100-125",
+      "viewport": {
+        "width": 870,
+        "height": 611,
+        "dpr": 1.5625
+      },
+      "documentWidth": 858,
+      "clientWidth": 858,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "passport-1100-125",
+      "viewport": {
+        "width": 870,
+        "height": 611,
+        "dpr": 1.5625
+      },
+      "documentWidth": 858,
+      "clientWidth": 858,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "settings-1100-125",
+      "viewport": {
+        "width": 870,
+        "height": 611,
+        "dpr": 1.5625
+      },
+      "documentWidth": 858,
+      "clientWidth": 858,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "map-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trips-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "journal-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "gallery-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "passport-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "settings-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "visit-editor-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    },
+    {
+      "page": "trip-editor-1100-150",
+      "viewport": {
+        "width": 725,
+        "height": 509,
+        "dpr": 1.875
+      },
+      "documentWidth": 715,
+      "clientWidth": 715,
+      "overflow": false,
+      "tinyText": []
+    }
+  ],
+  "reducedMotion": {
+    "enabled": true,
+    "transition": "0s"
+  },
+  "screenshotDirectory": "docs/screenshots/v0.3.2",
+  "failures": []
+}

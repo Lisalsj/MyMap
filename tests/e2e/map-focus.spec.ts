@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
-async function fixture() {
+async function fixture(narrow = false) {
   const parent = realpathSync(tmpdir())
   const root = mkdtempSync(join(parent, 'mymap-map-focus-'))
   let app: ElectronApplication | undefined
@@ -20,6 +20,10 @@ async function fixture() {
       env: { ...env, MYMAP_TEST_ROOT: root, MYMAP_TEST_HEADLESS: '1', MYMAP_DEMO: '0' }
     })
     const page = await app.firstWindow()
+    if (narrow)
+      await app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0].setBounds({ width: 1100, height: 800 })
+      })
     await page.getByRole('button', { name: '新建旅行', exact: true }).first().waitFor()
     await page.evaluate(async () => {
       const city = (await window.myMap.cities('芜湖')).find((item) => item.id === 'geonames:1791236')!
@@ -62,7 +66,7 @@ function region(page: Page) {
 }
 
 test('mouse city, label, marker and map clicks do not draw browser focus rectangles at city zoom', async () => {
-  const f = await fixture()
+  const f = await fixture(true)
   try {
     const { page } = f
     const city = region(page)
@@ -75,10 +79,32 @@ test('mouse city, label, marker and map clicks do not draw browser focus rectang
     await expect(page.locator('.map-city-inspector')).toContainText('芜湖市')
     await expect(page.locator('.map-selected-outline')).toBeVisible()
 
-    const label = page.getByRole('button', { name: '芜湖 · 已点亮 · 1 次到访', exact: true })
+    // The inspector deliberately removes labels it would cover, especially in a
+    // narrow window. Close it, then use a label that will remain outside its area.
+    await page.getByRole('button', { name: '关闭城市提示', exact: true }).click()
+    const labelName = await page.locator('.map-city-label').evaluateAll((labels) => {
+      const svg = document.querySelector<SVGSVGElement>('.footprint-map > svg')!
+      const box = svg.getBoundingClientRect(),
+        ratio = box.width / svg.viewBox.baseVal.width
+      return labels
+        .find((label) => {
+          const rect = label.getBoundingClientRect()
+          return (
+            rect.left > box.left + 24 * ratio &&
+            rect.right < box.right - 420 * ratio &&
+            rect.top > box.top + 75 * ratio &&
+            rect.bottom < box.bottom - 60 * ratio
+          )
+        })
+        ?.getAttribute('aria-label')
+    })
+    expect(labelName, 'a label outside the inspector region must be available').toBeTruthy()
+    const label = page.getByRole('button', { name: labelName!, exact: true })
     await label.click({ force: true })
     await expect(label).toBeFocused()
     await expect(label).toHaveCSS('outline-style', 'none')
+    await expect(label).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: '关闭城市提示', exact: true }).click()
     const marker = page.locator('.map-marker').first()
     await marker.click({ force: true })
     await expect(marker).toBeFocused()

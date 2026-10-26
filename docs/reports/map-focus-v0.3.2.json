@@ -1,0 +1,35 @@
+{
+  "version": "0.3.2",
+  "electronReportedAppVersion": "0.3.2",
+  "generatedAtUtc": "2026-10-26T06:52:45.264Z",
+  "executable": "D:\\aaa_else\\a_project\\MyMap\\release\\win-unpacked\\MyMap.exe",
+  "fixture": "One fictional local trip and one Wuhu city visit; visible Electron window; default GPU; city zoom 15.",
+  "evidence": [
+    {
+      "scenario": "pointer",
+      "city": "芜湖市，已点亮",
+      "focused": true,
+      "focusVisible": false,
+      "outline": "rgb(46, 93, 75) none 2.4px",
+      "outlineStyle": "none",
+      "stroke": "none",
+      "strokeWidth": "1px",
+      "vectorEffect": "non-scaling-stroke",
+      "selected": true,
+      "transform": "translate(-10113.258549166296 -5107.817437212087) scale(15)"
+    },
+    {
+      "scenario": "keyboard",
+      "city": "芜湖市，已点亮",
+      "focused": true,
+      "focusVisible": true,
+      "outline": "rgb(46, 93, 75) none 2.4px",
+      "outlineStyle": "none",
+      "stroke": "rgb(32, 75, 59)",
+      "strokeWidth": "3px",
+      "vectorEffect": "non-scaling-stroke",
+      "selected": true,
+      "transform": "translate(-10113.258549166296 -5107.817437212087) scale(15)"
+    }
+  ]
+}

@@ -39,10 +39,22 @@ jobs:
       - name: Create executable checksums
         if: env.PACKAGE_BUILD == 'true'
         run: npm run checksums
+      - name: Upload test failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: MyMap-test-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
+          path: |
+            test-results/
+            .superpowers/packaged-results/
       - uses: actions/upload-artifact@v7
         if: env.PACKAGE_BUILD == 'true'
         with:
           name: MyMap-Windows-x64
+          compression-level: 0
           path: |
             release/*.exe
             release/SHA256SUMS.txt
