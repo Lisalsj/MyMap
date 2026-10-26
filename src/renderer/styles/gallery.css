@@ -32,6 +32,10 @@
   box-shadow: none;
   padding-inline: 0;
 }
+.gallery-search .input-icon input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 .gallery-import-action {
   display: flex;
   align-items: center;

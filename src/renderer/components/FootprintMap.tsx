@@ -20,14 +20,21 @@ import {
 import type { AppSnapshot } from '../../shared/types'
 import {
   buildCityLights,
-  clusterMarkers,
   routeGeometry,
   selectEligibleVisits,
   validCoordinate,
   type BoundaryFeature,
   type CityLight
 } from '../map/domain'
-import { fitBounds, fromScreen, selectLabels, toScreen, zoomViewport, type Viewport } from '../map/geometry'
+import {
+  clusterProjectedMarkers,
+  fitBounds,
+  fromScreen,
+  selectLabels,
+  toScreen,
+  zoomViewport,
+  type Viewport
+} from '../map/geometry'
 import { loadAtlas, type Atlas } from '../map/atlas'
 import './FootprintMap.css'
 export { validCoordinate, routeGeometry, clusterMarkers, selectMapVisits } from '../map/domain'
@@ -106,6 +113,7 @@ const BaseLayer = memo(function BaseLayer({
               aria-label={`${region.properties.name}${lit.has(region.properties.id) ? '，已点亮' : '，待探索'}`}
               tabIndex={!picking && lit.has(region.properties.id) ? 0 : -1}
               role="button"
+              aria-pressed={selected === region.properties.id}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
@@ -164,7 +172,7 @@ export const FootprintMap = memo(function FootprintMap({
     () => selectEligibleVisits(snapshot, { tripId, year, cityId }),
     [snapshot.trips, snapshot.places, snapshot.visits, tripId, year, cityId]
   )
-  const signature = eligible.map((item) => item.visit.id).join('|')
+  const signature = useMemo(() => eligible.map((item) => item.visit.id).join('|'), [eligible])
   const shown = useMemo(
     () => (playback && tripId ? eligible.slice(0, step) : eligible),
     [eligible, playback, tripId, step]
@@ -280,15 +288,7 @@ export const FootprintMap = memo(function FootprintMap({
     [locatedShown, geometry]
   )
   const clusters = useMemo(
-    () =>
-      clusterMarkers(
-        points.flatMap(({ base, ...item }) => {
-          const [x, y] = toScreen(base as [number, number], view)
-          return x >= -25 && x < size.width + 25 && y >= -25 && y < size.height + 25
-            ? [{ ...item, x, y }]
-            : []
-        })
-      ),
+    () => clusterProjectedMarkers(points, view, size.width, size.height),
     [points, view, size]
   )
   const route = useMemo(
@@ -453,6 +453,7 @@ export const FootprintMap = memo(function FootprintMap({
               transform={`translate(${label.x} ${label.y})`}
               className={`map-city-label ${label.lit ? 'is-lit' : ''}`}
               role={world ? undefined : 'button'}
+              aria-pressed={world ? undefined : selectedId === label.id}
               tabIndex={world || picking ? -1 : 0}
               aria-label={
                 world
@@ -506,6 +507,7 @@ export const FootprintMap = memo(function FootprintMap({
                 className={`map-marker ${cluster.items.some((p) => p.visit.id === chosen) ? 'selected' : ''}`}
                 transform={`translate(${cluster.x} ${cluster.y})`}
                 role="button"
+                aria-pressed={cluster.items.some((p) => p.visit.id === chosen)}
                 tabIndex={picking ? -1 : 0}
                 aria-label={`${count > 1 ? `${count} 个旅行停留点，点击展开；` : ''}${item.place.name} · ${item.trip.title}`}
                 onPointerDown={(event) => {

@@ -233,9 +233,15 @@
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
 }
+.global-search input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 .global-search:focus-within {
   border-color: var(--green);
-  box-shadow: 0 0 0 3px #2e5d4b10;
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 .global-search > button {
   display: flex;

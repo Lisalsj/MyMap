@@ -9,6 +9,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      PACKAGE_BUILD: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -16,16 +18,29 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node -e "if (process.env.GITHUB_REF_NAME !== 'v' + require('./package.json').version) throw new Error('Tag and package version differ')"
       - run: npm test
-      - run: npm run build
-      - run: npm run test:e2e
-      - run: npm run dist:win
+      - name: Build source
+        if: env.PACKAGE_BUILD != 'true'
+        run: npm run build
+      - name: Test source application
+        if: env.PACKAGE_BUILD != 'true'
+        run: npm run test:e2e
+      - name: Build Windows executables
+        if: env.PACKAGE_BUILD == 'true'
+        run: npm run dist:win
       - name: Test packaged executable
+        if: env.PACKAGE_BUILD == 'true'
         run: npx playwright test --output=.superpowers/packaged-results
         env:
           MYMAP_EXECUTABLE: ${{ github.workspace }}\release\win-unpacked\MyMap.exe
-      - run: npm run checksums
+      - name: Create executable checksums
+        if: env.PACKAGE_BUILD == 'true'
+        run: npm run checksums
       - uses: actions/upload-artifact@v7
+        if: env.PACKAGE_BUILD == 'true'
         with:
           name: MyMap-Windows-x64
           path: |

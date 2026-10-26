@@ -1,8 +1,9 @@
 import { useEffect, useRef, type RefObject } from 'react'
 
-type DialogEntry = { token: symbol; holder: RefObject<HTMLElement | null>; prior: HTMLElement | null }
+type FocusTarget = HTMLElement | SVGElement
+type DialogEntry = { token: symbol; holder: RefObject<HTMLElement | null>; prior: FocusTarget | null }
 const dialogs: DialogEntry[] = []
-let returnTarget: HTMLElement | null = null
+let returnTarget: FocusTarget | null = null
 const focusableSelector =
   'button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),summary,[tabindex="0"]'
 function focusable(holder: HTMLElement) {
@@ -19,7 +20,8 @@ export function useDialogFocus(holder: RefObject<HTMLElement | null>, onEscape: 
     token = useRef(Symbol('dialog'))
   close.current = onEscape
   useEffect(() => {
-    const prior = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const active = document.activeElement
+    const prior = active instanceof HTMLElement || active instanceof SVGElement ? active : null
     if (!dialogs.length) returnTarget = prior
     const entry: DialogEntry = { token: token.current, holder, prior }
     dialogs.push(entry)

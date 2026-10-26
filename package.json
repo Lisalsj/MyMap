@@ -1,6 +1,6 @@
 {
   "name": "mymap-travel-journal",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MyMap · 旅行手账 — 完全离线的足迹、游记与本地照片库",
   "main": "./out/main/index.js",
   "author": "Lisalsj",

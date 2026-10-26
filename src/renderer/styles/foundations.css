@@ -43,7 +43,7 @@ button {
     box-shadow var(--duration-fast) var(--ease),
     transform var(--duration-fast) var(--ease);
 }
-button:active:not(:disabled) {
+:where(button:active:not(:disabled)) {
   transform: translateY(1px);
 }
 button:focus-visible,
@@ -553,6 +553,10 @@ i {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+  button:hover,
+  button:active {
+    transform: none !important;
   }
   .activity-indicator i,
   .skeleton {

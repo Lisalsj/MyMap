@@ -10,6 +10,38 @@ export function toScreen(point: Point, view: Viewport): [number, number] {
 export function fromScreen(point: Point, view: Viewport): [number, number] {
   return [(point[0] - view.x) / view.zoom, (point[1] - view.y) / view.zoom]
 }
+
+/** Project and group visible markers without copying each member on every viewport update. */
+export function clusterProjectedMarkers<T extends { base: Point }>(
+  points: readonly T[],
+  view: Viewport,
+  width: number,
+  height: number,
+  cellSize = 44
+): { x: number; y: number; items: T[] }[] {
+  const cells = new Map<string, { x: number; y: number; items: T[] }>()
+  for (const point of points) {
+    const x = point.base[0] * view.zoom + view.x,
+      y = point.base[1] * view.zoom + view.y
+    if (!(x >= -25 && x < width + 25 && y >= -25 && y < height + 25)) continue
+    const key = `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`
+    let cell = cells.get(key)
+    if (!cell) {
+      cell = { x: 0, y: 0, items: [] }
+      cells.set(key, cell)
+    }
+    cell.x += x
+    cell.y += y
+    cell.items.push(point)
+  }
+  const clusters = [...cells.values()]
+  for (const cluster of clusters) {
+    cluster.x /= cluster.items.length
+    cluster.y /= cluster.items.length
+  }
+  return clusters
+}
+
 export function zoomViewport(view: Viewport, factor: number, anchor: Point, min = 0.55, max = 24): Viewport {
   const zoom = Math.min(max, Math.max(min, view.zoom * factor))
   const ratio = zoom / view.zoom

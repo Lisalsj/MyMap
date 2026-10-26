@@ -43,11 +43,28 @@
   background: var(--green-soft);
 }
 .footprint-map button:focus-visible,
-.map-city-region:focus-visible,
 .map-marker:focus-visible,
 .map-city-label:focus-visible {
   outline: 2px solid var(--green-dark);
   outline-offset: 4px;
+}
+/* SVG's default :focus outline uses the system accent and scales with city geometry. */
+.footprint-map > svg:focus:not(:focus-visible),
+.map-city-label:focus:not(:focus-visible),
+.map-marker:focus:not(:focus-visible),
+.footprint-map .map-city-region:focus {
+  outline: none;
+}
+.footprint-map > svg:focus-visible {
+  outline-offset: -2px;
+}
+.map-city-region:focus-visible {
+  stroke: var(--green-dark);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.map-base-layer:has(.map-city-region.is-selected:focus-visible) > .map-selected-outline {
+  stroke: var(--green-dark);
 }
 .footprint-map button:disabled {
   opacity: 0.4;
