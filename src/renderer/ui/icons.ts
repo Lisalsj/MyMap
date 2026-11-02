@@ -10,15 +10,11 @@ export {
   Camera,
   Check,
   CaretRight as ChevronRight,
-  CaretLeft as ChevronLeft,
-  CaretDown as ChevronDown,
-  CaretUpDown as ChevronsUpDown,
   Compass,
   FolderOpen,
   GlobeHemisphereWest as Globe2,
   MapTrifold as Map,
   MapPin,
-  DotsThree as MoreHorizontal,
   PencilSimple as Pencil,
   Plus,
   MagnifyingGlass as Search,
@@ -43,10 +39,5 @@ export {
   Eye,
   NotePencil as PencilLine,
   FloppyDisk as Save,
-  CircleNotch as LoaderCircle,
-  Image,
-  List as Menu,
-  CheckCircle,
-  WarningCircle as AlertCircle,
-  Keyboard
+  Image
 } from '@phosphor-icons/react'

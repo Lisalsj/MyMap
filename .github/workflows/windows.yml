@@ -21,6 +21,7 @@ jobs:
       - name: Verify release version
         if: startsWith(github.ref, 'refs/tags/v')
         run: node -e "if (process.env.GITHUB_REF_NAME !== 'v' + require('./package.json').version) throw new Error('Tag and package version differ')"
+      - run: npm run format:check
       - run: npm test
       - name: Build source
         if: env.PACKAGE_BUILD != 'true'
@@ -33,7 +34,7 @@ jobs:
         run: npm run dist:win
       - name: Test packaged executable
         if: env.PACKAGE_BUILD == 'true'
-        run: npx playwright test --output=.superpowers/packaged-results
+        run: npx playwright test --output=test-results/packaged
         env:
           MYMAP_EXECUTABLE: ${{ github.workspace }}\release\win-unpacked\MyMap.exe
       - name: Create executable checksums
@@ -45,11 +46,8 @@ jobs:
         with:
           name: MyMap-test-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore
-          include-hidden-files: true
           retention-days: 7
-          path: |
-            test-results/
-            .superpowers/packaged-results/
+          path: test-results/
       - uses: actions/upload-artifact@v7
         if: env.PACKAGE_BUILD == 'true'
         with:
@@ -66,6 +64,6 @@ jobs:
         run: |
           gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $env:GITHUB_REF_NAME release/*.exe release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --verify-tag --title "MyMap $env:GITHUB_REF_NAME" --notes-file docs/RELEASE.md
+            gh release create $env:GITHUB_REF_NAME release/*.exe release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --verify-tag --title "MyMap $env:GITHUB_REF_NAME" --generate-notes
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }

@@ -19,15 +19,7 @@ import {
   X
 } from './ui/icons'
 import type { AppSnapshot, Entry, EntityKind, Trip } from '../shared/types'
-import {
-  activeTrips,
-  activeVisits,
-  matches,
-  matchingTrips,
-  passport,
-  tripDates,
-  effectiveVisitDate
-} from './model'
+import { matches, matchingTrips, passport, tripDates, effectiveVisitDate } from './model'
 import { Empty, Modal, Spinner } from './components/Common'
 import type { InitialVisit } from './components/Editors'
 import { MapPage } from './pages/MapPage'
@@ -265,12 +257,10 @@ export default function App() {
   const derived = useMemo(() => {
     if (!snapshot) return null
     const index = getSnapshotIndex(snapshot)
-    const trips = activeTrips(snapshot),
-      visits = activeVisits(snapshot)
+    const { activeTrips: trips, activeVisits: visits } = index
     return {
       index,
       trips,
-      visits,
       stamps: passport(snapshot),
       years: [
         ...new Set(
@@ -679,7 +669,6 @@ export default function App() {
                 onSaved={updateEntry}
                 registerFlush={registerFlush}
                 run={run}
-                refresh={refresh}
                 confirmTrash={(id) => trash('entry', id)}
               />
             </Suspense>

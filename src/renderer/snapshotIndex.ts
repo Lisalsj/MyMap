@@ -6,7 +6,6 @@ export interface SnapshotIndex {
   readonly visitById: ReadonlyMap<string, Visit>
   readonly entryById: ReadonlyMap<string, Entry>
   readonly photoById: ReadonlyMap<string, Photo>
-  readonly attachmentById: ReadonlyMap<string, PhotoAttachment>
   readonly activeTripIds: ReadonlySet<string>
   readonly activeTrips: readonly Trip[]
   readonly activeVisits: readonly Visit[]
@@ -69,7 +68,6 @@ export function createSnapshotIndex(snapshot: AppSnapshot): SnapshotIndex {
     visitById: byId(snapshot.visits),
     entryById: byId(snapshot.entries),
     photoById,
-    attachmentById: byId(snapshot.attachments),
     activeTripIds,
     activeTrips,
     activeVisits,

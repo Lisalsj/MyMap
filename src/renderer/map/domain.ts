@@ -49,24 +49,6 @@ export function validCoordinate(lat: number | null, lon: number | null) {
 export function routeGeometry(points: [number, number][]) {
   return { type: 'LineString' as const, coordinates: points }
 }
-export function clusterMarkers<T extends { x: number; y: number }>(
-  points: T[],
-  cellSize = 44
-): { x: number; y: number; items: T[] }[] {
-  const cells = new Map<string, T[]>()
-  for (const point of points) {
-    const key = `${Math.floor(point.x / cellSize)},${Math.floor(point.y / cellSize)}`
-    const items = cells.get(key) || []
-    items.push(point)
-    cells.set(key, items)
-  }
-  return [...cells.values()].map((items) => ({
-    x: items.reduce((sum, point) => sum + point.x, 0) / items.length,
-    y: items.reduce((sum, point) => sum + point.y, 0) / items.length,
-    items
-  }))
-}
-
 /** Geographic eligibility is independent from whether a stop has a coordinate. */
 export function selectEligibleVisits(snapshot: AppSnapshot, filters: MapFilters = {}): MapVisit[] {
   const trips = new Map(snapshot.trips.filter((trip) => !trip.deletedAt).map((trip) => [trip.id, trip]))
@@ -91,12 +73,6 @@ export function selectEligibleVisits(snapshot: AppSnapshot, filters: MapFilters 
         a.visit.sortOrder - b.visit.sortOrder || (a.visit.date || '').localeCompare(b.visit.date || '')
     )
 }
-export function selectMapVisits(snapshot: AppSnapshot, filters: MapFilters = {}): MapVisit[] {
-  return selectEligibleVisits(snapshot, filters).filter((item) =>
-    validCoordinate(item.place.lat, item.place.lon)
-  )
-}
-
 export function normalizeCityName(value: string) {
   return value
     .normalize('NFKC')

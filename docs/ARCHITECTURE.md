@@ -1,25 +1,38 @@
-# MyMap architecture
+# 架构与目录
 
-MyMap is an offline Windows Electron application. React renders a local custom-protocol document; a sandboxed preload exposes typed, per-operation calls. The main process owns native dialogs, a single application window, trusted request origins and media protocols. A utility process owns SQLite and image processing.
+MyMap 使用 Electron、React 和 TypeScript。所有界面、地图、字体和城市检索均在本地运行。
 
-## Data and assets
+| 目录                | 职责                                                          |
+| ------------------- | ------------------------------------------------------------- |
+| `src/main`          | 窗口、原生对话框、受信任来源、本地媒体协议和后台进程          |
+| `src/preload`       | 向沙箱界面暴露受限、带类型的操作接口                          |
+| `src/backend`       | SQLite、照片处理、导入、备份与恢复，在 utility process 中执行 |
+| `src/renderer`      | 页面、编辑器、照片馆与公共控件                                |
+| `src/renderer/map`  | 城市匹配、点亮统计、视口变换、聚合与静态图集                  |
+| `src/shared`        | 共享类型和城市查询                                            |
+| `resources`         | 离线数据、演示素材和第三方许可                                |
+| `tests` / `scripts` | 自动化验证、资源重建与打包工具                                |
 
-- Trip groups Visit, Entry and PhotoAttachment records. Place is reusable; editing a Visit can select or create another Place without changing other visits.
-- Photo stores a content hash, metadata and library-relative paths. A Photo can be reused across trips without copying its original bytes again.
-- Markdown is parsed as GFM for reference validation, photo retention and export; entity-encoded and reference-style image URLs use the same interpretation as the renderer.
-- Dates of visits and trips are local date-only strings. EXIF camera-local date/time remains local, with an original timezone offset if present.
-- Map polygons, city index, font, icons and demonstration illustrations are bundled. The runtime has no map provider, geocoding API, telemetry or update service.
+## 数据关系
 
-## Reliability
+`Trip` 组织一次旅行，`Visit` 记录到访并引用可复用的 `Place`。`Entry` 可属于整次旅行或某次到访。`PhotoAttachment` 把照片关联到旅行、到访或手记。
 
-Managed paths reject traversal and symlinks. Imports validate format and pixel limits, copy through temporary files, retain originals, generate oriented previews and deduplicate bytes. SQLite transactions protect relationships; the library lock prevents competing writers.
+`Photo` 保存内容哈希、元数据和资料库相对路径；相同原图可被多处引用。旅行和到访日期保存为本地日期，EXIF 拍摄时间保留相机当地时间及已有时区偏移。
 
-Soft deletion preserves records until explicit trash clearing. Remaining Markdown, cover and attachment references protect original photos. Complete backups contain a consistent SQLite snapshot and original files with hashes; restore validates into a new library before switching.
+Markdown 使用一致的 GFM 解析规则校验本地图片引用、保护仍被使用的照片并导出；不执行原始 HTML，也不加载远程图片。
 
-The journal save queue serializes edits and drains newer drafts received during a save. Navigation and exit flush pending text. A renderer-ready handshake prevents startup/close races; shutdown freezes input and waits for import, backup and restore work. Expected navigation interruption during requested shutdown is not reported as a startup failure.
+## 保存与可靠性
 
-## Distribution
+- 导入校验格式、像素限制和受管理路径，通过临时文件完成复制，生成方向正确的预览，并用事务保存关联。
+- 资料库锁阻止多个程序同时写入。受管理路径拒绝越界和符号链接。
+- 手记与照片说明使用串行保存队列；切换记录和退出前等待最新草稿，失败时保留编辑内容。
+- 启动握手和退出协调避免加载中关闭的竞态；退出会等待导入、备份和恢复任务结束。
+- 删除使用回收站，清空时检查手记、封面及附件引用；完整备份包含一致的数据库快照和原图哈希，恢复先写入新库。
 
-electron-builder creates NSIS and self-extracting portable executables. Data remains outside program installation directories. The portable executable is convenient to distribute but extracts the runtime before starting; the installed version starts faster.
+## 运行与分发
 
-The Git repository contains source and redistributable assets. Personal libraries, build outputs, executable artifacts, credentials and internal work files are ignored. Executables and their SHA-256 sums are GitHub Release attachments.
+发行程序阻止网络请求，无遥测或自动更新。个人资料位于安装目录之外；开发、演示和测试资料库互相隔离。
+
+electron-builder 生成 NSIS 安装版和自解压免安装程序。免安装版每次启动先展开运行时，启动时间会比安装版长。程序体积主要来自自带的 Chromium 和 Node.js。
+
+Git 只保存源码及可再分发资源。构建结果、测试报告和个人资料忽略提交，程序与校验文件通过 GitHub Releases 分发。

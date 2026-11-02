@@ -16,7 +16,6 @@ interface Props {
   onSaved: (entry: Entry) => void
   registerFlush: (flush: () => Promise<void>) => void
   run: (operation: () => Promise<unknown>, success?: string) => Promise<boolean>
-  refresh: () => Promise<void>
   confirmTrash: (id: string) => void
 }
 export function Journal({
@@ -27,7 +26,6 @@ export function Journal({
   onSaved,
   registerFlush,
   run,
-  refresh,
   confirmTrash
 }: Props) {
   const index = useMemo(() => getSnapshotIndex(snapshot), [snapshot])

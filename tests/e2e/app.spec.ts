@@ -1,5 +1,5 @@
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
-import { mkdtempSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import sharp from 'sharp'
@@ -111,7 +111,7 @@ test('offline application persists journals and photos across a real Electron re
   }
 })
 
-test('demo is separate, renders the map, and supplies a reproducible screenshot', async () => {
+test('demo is separate, renders the map, and supplies a reproducible screenshot', async ({}, testInfo) => {
   const root = mkdtempSync(join(tmpdir(), 'mymap-demo-'))
   let app: ElectronApplication | undefined
   try {
@@ -123,8 +123,7 @@ test('demo is separate, renders the map, and supplies a reproducible screenshot'
     await page.evaluate(() => document.fonts.ready)
     await expect(page.locator('.map-city-region').first()).toBeVisible()
     await page.waitForTimeout(1000)
-    mkdirSync('.superpowers/e2e-screenshots', { recursive: true })
-    await page.screenshot({ path: '.superpowers/e2e-screenshots/overview.png', fullPage: true })
+    await page.screenshot({ path: testInfo.outputPath('overview.png'), fullPage: true })
     await page.evaluate(() => window.myMap.setDemo(false))
     const personal = await page.evaluate(() => window.myMap.snapshot())
     expect(personal.trips).toHaveLength(0)

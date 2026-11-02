@@ -10,20 +10,6 @@
   border-radius: var(--radius-2xl);
   background: var(--surface);
 }
-.map-card-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-6);
-}
-.map-card-heading h2 {
-  font-size: var(--text-lg);
-  line-height: var(--leading-lg);
-}
-.map-card-heading .eyebrow {
-  display: none;
-}
 .map-pill {
   display: flex;
   align-items: center;
@@ -64,27 +50,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-.map-bottom-note {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-  color: var(--muted);
-}
-.map-bottom-note > span {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--green);
 }
 .home-aside {
   display: grid;
@@ -215,8 +180,5 @@
   .map-context-row {
     flex-direction: column;
     gap: var(--space-2);
-  }
-  .map-bottom-note > span:last-child {
-    display: none;
   }
 }

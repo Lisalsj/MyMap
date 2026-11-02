@@ -490,15 +490,6 @@ i {
   min-height: 20rem;
   border-radius: var(--radius-2xl);
 }
-.lazy-page-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  min-height: 12rem;
-  color: var(--muted);
-  font-size: var(--text-sm);
-}
 .sr-only {
   position: absolute;
   width: 1px;

@@ -1,8 +1,9 @@
 const { chromium } = require('@playwright/test')
 const { spawn } = require('node:child_process')
-const { mkdtempSync, writeFileSync, mkdirSync } = require('node:fs')
+const { mkdtempSync } = require('node:fs')
 const { tmpdir } = require('node:os')
-const { join, resolve } = require('node:path')
+const { join, resolve, basename } = require('node:path')
+const { writeReport } = require('./lib/artifacts.cjs')
 const net = require('node:net')
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 async function freePort() {
@@ -76,19 +77,14 @@ async function main() {
   const report = {
     date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }),
     version,
-    executable: require('node:path').basename(executable),
+    executable: basename(executable),
     launches: 2,
     launchAndUiReadyMs: elapsed,
     persistence: 'passed',
     externalNetworkBlocked: true,
     cleanExit: true
   }
-  const reportName =
-    require('node:path').basename(executable) === 'MyMap.exe'
-      ? `installed-smoke-v${version}.json`
-      : `portable-smoke-v${version}.json`
-  mkdirSync('docs/reports', { recursive: true })
-  writeFileSync(`docs/reports/${reportName}`, JSON.stringify(report, null, 2) + '\n')
+  writeReport(basename(executable) === 'MyMap.exe' ? 'installed-smoke' : 'portable-smoke', report)
   console.log(JSON.stringify(report, null, 2))
 }
 main().catch((error) => {

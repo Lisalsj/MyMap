@@ -1,79 +1,159 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
+import type { ElectronApplication } from '@playwright/test'
 import sharp from 'sharp'
 import { LibraryService } from '../src/backend/library'
+import { writeReport } from './lib/artifacts.cjs'
 
 async function main() {
-  const count = Number(process.argv[2] || 5000)
-  const profile = mkdtempSync(join(tmpdir(), 'mymap-benchmark-'))
-  const input = join(profile, 'input')
-  mkdirSync(input)
-  const paths: string[] = []
-  const generated = performance.now()
-  for (let index = 0; index < count; index++) {
-    const file = join(input, `${index}.png`)
-    const bytes = Buffer.alloc(32 * 24 * 3)
-    for (let offset = 0; offset < bytes.length; offset += 3) {
-      bytes[offset] = index % 256
-      bytes[offset + 1] = Math.floor(index / 256) % 256
-      bytes[offset + 2] = 100
-    }
-    writeFileSync(
-      file,
-      await sharp(bytes, { raw: { width: 32, height: 24, channels: 3 } })
-        .png()
-        .toBuffer()
+  const args = process.argv.slice(2)
+  if (args.includes('--help')) {
+    console.log(
+      'Run: npx tsx scripts/benchmark.ts [count=5000] [--ui]. Uses synthetic 32×24 PNGs in an isolated temporary library, then removes it. --ui additionally measures the first gallery page after npm run build; MYMAP_EXECUTABLE may select a packaged MyMap.exe. Writes test-results/reports/performance.json.'
     )
-    paths.push(file)
+    return
   }
-  const library = new LibraryService(join(profile, 'Library'))
-  const trip = library.saveTrip({ title: '性能验收 · 合成图库', tags: ['仅合成测试'] })
-  for (let index = 0; index < 500; index++)
-    library.saveVisit({
-      tripId: trip.id,
-      name: `合成测试地点 ${index}`,
-      kind: 'custom',
-      cityId: `bench:${index}`,
-      cityName: `测试城市 ${index}`,
-      country: 'CN',
-      lat: 20 + (index % 30),
-      lon: 80 + (index % 50),
-      date: '',
-      note: ''
+  const countArguments = args.filter((arg) => !arg.startsWith('--'))
+  const count = Number(countArguments[0] || 5000)
+  if (
+    args.some((arg) => arg.startsWith('--') && arg !== '--ui') ||
+    countArguments.length > 1 ||
+    !Number.isInteger(count) ||
+    count < 1 ||
+    count > 65536
+  )
+    throw new Error('Expected a photo count from 1 to 65536 and optional --ui; see --help')
+  const measureUi = args.includes('--ui')
+  if (measureUi && !process.env.MYMAP_EXECUTABLE && !existsSync('out/main/index.js'))
+    throw new Error('Build the app before running --ui: npm run build')
+
+  const parent = realpathSync(tmpdir())
+  const prefix = 'mymap-benchmark-'
+  const profile = mkdtempSync(join(parent, prefix))
+  let library: LibraryService | undefined
+  let app: ElectronApplication | undefined
+  try {
+    const input = join(profile, 'input')
+    mkdirSync(input)
+    const paths: string[] = []
+    const generated = performance.now()
+    for (let index = 0; index < count; index++) {
+      const file = join(input, `${index}.png`)
+      const bytes = Buffer.alloc(32 * 24 * 3)
+      for (let offset = 0; offset < bytes.length; offset += 3) {
+        bytes[offset] = index % 256
+        bytes[offset + 1] = Math.floor(index / 256) % 256
+        bytes[offset + 2] = 100
+      }
+      writeFileSync(
+        file,
+        await sharp(bytes, { raw: { width: 32, height: 24, channels: 3 } })
+          .png()
+          .toBuffer()
+      )
+      paths.push(file)
+    }
+    library = new LibraryService(join(profile, 'Library'))
+    const trip = library.saveTrip({ title: '性能验收 · 合成图库', tags: ['仅合成测试'] })
+    for (let index = 0; index < 500; index++)
+      library.saveVisit({
+        tripId: trip.id,
+        name: `合成测试地点 ${index}`,
+        kind: 'custom',
+        cityId: `bench:${index}`,
+        cityName: `测试城市 ${index}`,
+        country: 'CN',
+        lat: 20 + (index % 30),
+        lon: 80 + (index % 50),
+        date: '',
+        note: ''
+      })
+    const importStart = performance.now()
+    const progress = await library.importPhotos(paths, trip.id, {}, (p) => {
+      if (p.completed && p.completed % 1000 === 0 && p.current === '')
+        console.log(`Imported ${p.completed}/${count}`)
     })
-  const importStart = performance.now()
-  const progress = await library.importPhotos(paths, trip.id, {}, (p) => {
-    if (p.completed && p.completed % 1000 === 0 && p.current === '')
-      console.log(`Imported ${p.completed}/${count}`)
-  })
-  const importMs = performance.now() - importStart
-  const snapshotStart = performance.now()
-  const snapshot = library.snapshot()
-  const snapshotMs = performance.now() - snapshotStart
-  library.close()
-  const report = {
-    date: '2026-10-25',
-    environment: { platform: process.platform, arch: process.arch, node: process.versions.node },
-    fixture:
-      '5000 distinct synthetic 32×24 PNGs; 500 located visits; thumbnails generated by the actual import pipeline',
-    count: snapshot.photos.length,
-    visits: snapshot.visits.length,
-    errors: progress.errors.length,
-    fixtureGenerationMs: Math.round(importStart - generated),
-    importMs: Math.round(importMs),
-    snapshotMs: Math.round(snapshotMs * 100) / 100,
-    snapshotBytes: Buffer.byteLength(JSON.stringify(snapshot)),
-    note: 'Synthetic tiny files measure indexing and cache behavior; not a camera-original import throughput estimate.'
+    const importMs = performance.now() - importStart
+    const snapshotStart = performance.now()
+    const snapshot = library.snapshot()
+    const snapshotMs = performance.now() - snapshotStart
+    library.close()
+    library = undefined
+    if (snapshot.photos.length !== count || progress.errors.length)
+      throw new Error(
+        `Incomplete synthetic import: ${snapshot.photos.length}/${count}; ${progress.errors.length} errors`
+      )
+    const report: Record<string, unknown> = {
+      generatedAtUtc: new Date().toISOString(),
+      environment: { platform: process.platform, arch: process.arch, node: process.versions.node },
+      fixture: `${count} distinct synthetic 32×24 PNGs; 500 located visits; thumbnails generated by the actual import pipeline`,
+      count: snapshot.photos.length,
+      visits: snapshot.visits.length,
+      errors: progress.errors.length,
+      fixtureGenerationMs: Math.round(importStart - generated),
+      importMs: Math.round(importMs),
+      snapshotMs: Math.round(snapshotMs * 100) / 100,
+      snapshotBytes: Buffer.byteLength(JSON.stringify(snapshot)),
+      note: 'Synthetic tiny files measure indexing and cache behavior; not a camera-original import throughput estimate.'
+    }
+    if (measureUi) {
+      const { _electron: electron } = await import('@playwright/test')
+      const env = { ...process.env, MYMAP_TEST_ROOT: profile, MYMAP_TEST_HEADLESS: '1', MYMAP_DEMO: '0' }
+      delete env.ELECTRON_RUN_AS_NODE
+      const started = performance.now()
+      app = await electron.launch({
+        executablePath: process.env.MYMAP_EXECUTABLE || undefined,
+        args: process.env.MYMAP_EXECUTABLE
+          ? ['--disable-gpu']
+          : [resolve('out/main/index.js'), '--disable-gpu'],
+        env
+      })
+      const page = await app.firstWindow()
+      await page.getByRole('button', { name: '新建旅行', exact: true }).first().waitFor()
+      await page.waitForFunction(() => document.body.innerText.includes('合成图库'))
+      const firstScreenMs = Math.round(performance.now() - started)
+      const opened = performance.now()
+      await page.getByRole('button', { name: '照片馆', exact: true }).click()
+      await page.waitForFunction(
+        (expected) => document.querySelectorAll('.photo-tile').length === expected,
+        Math.min(count, 60)
+      )
+      await page.waitForFunction(() => {
+        const visible = [...document.querySelectorAll<HTMLImageElement>('.photo-tile img')].filter(
+          (image) => {
+            const rect = image.getBoundingClientRect()
+            return rect.top < innerHeight && rect.bottom > 0
+          }
+        )
+        return visible.length > 0 && visible.every((image) => image.complete && image.naturalWidth > 0)
+      })
+      report.electron = await app.evaluate(() => process.versions.electron)
+      report.renderer = {
+        firstScreenMs,
+        galleryFirstPageMs: Math.round(performance.now() - opened),
+        renderedPhotoCards: await page.locator('.photo-tile').count(),
+        totalPhotos: count,
+        coldLaunchIncludesMainAndUtilityStartup: true
+      }
+    }
+    writeReport('performance', report)
+    console.log(JSON.stringify(report, null, 2))
+  } finally {
+    library?.close()
+    if (app) await app.close().catch(() => app!.process().kill())
+    const target = resolve(profile)
+    if (
+      dirname(target) !== parent ||
+      !basename(target).startsWith(prefix) ||
+      lstatSync(target).isSymbolicLink()
+    )
+      throw new Error('Refusing unexpected benchmark cleanup path')
+    rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
-  mkdirSync('docs/reports', { recursive: true })
-  writeFileSync('docs/reports/performance.json', JSON.stringify(report, null, 2) + '\n')
-  mkdirSync('.superpowers', { recursive: true })
-  writeFileSync('.superpowers/benchmark-profile.txt', profile)
-  console.log(JSON.stringify(report, null, 2))
-  console.log(`BENCHMARK_PROFILE=${profile}`)
 }
+
 main().catch((error) => {
   console.error(error)
   process.exitCode = 1

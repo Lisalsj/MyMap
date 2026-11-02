@@ -1,6 +1,5 @@
 import type { AppSnapshot, City, Entry, Trip, Visit, VisitInput } from '../shared/types'
 import { getSnapshotIndex } from './snapshotIndex'
-export { createSnapshotIndex, getSnapshotIndex, type SnapshotIndex } from './snapshotIndex'
 
 export const manualCityId = (name: string, country: string) =>
   `manual:${country.normalize('NFKC').trim().toLowerCase()}:${name.normalize('NFKC').trim().toLowerCase()}`
@@ -60,13 +59,6 @@ export function buildVisitInput(form: VisitForm): VisitInput {
   }
 }
 
-export const activeTrips = (s: AppSnapshot) => [...getSnapshotIndex(s).activeTrips]
-export const activeVisits = (s: AppSnapshot) => [...getSnapshotIndex(s).activeVisits]
-export const activeEntries = (s: AppSnapshot) => [...getSnapshotIndex(s).activeEntries]
-export const activeAttachments = (s: AppSnapshot) => [...getSnapshotIndex(s).activeAttachments]
-export const orderedVisits = (s: AppSnapshot, tripId: string) => [
-  ...(getSnapshotIndex(s).orderedVisitsByTrip.get(tripId) || [])
-]
 export function passport(s: AppSnapshot) {
   const index = getSnapshotIndex(s)
   const byCity = new Map<

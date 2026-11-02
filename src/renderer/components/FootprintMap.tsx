@@ -37,7 +37,6 @@ import {
 } from '../map/geometry'
 import { loadAtlas, type Atlas } from '../map/atlas'
 import './FootprintMap.css'
-export { validCoordinate, routeGeometry, clusterMarkers, selectMapVisits } from '../map/domain'
 
 interface Props {
   snapshot: AppSnapshot

@@ -3,11 +3,11 @@ const { _electron: electron } = require('@playwright/test')
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { resolve, join, dirname, basename } = require('node:path')
+const { writeReport, screenshotsDirectory: directory } = require('./lib/artifacts.cjs')
 const version = require('../package.json').version
 const prefix = 'mymap-design-qa-'
 const tempParent = realpathSync(tmpdir())
 const profile = mkdtempSync(join(tempParent, prefix))
-const directory = resolve(`docs/screenshots/v${version}`)
 const results = []
 const delay = (ms) => new Promise((done) => setTimeout(done, ms))
 let app
@@ -176,11 +176,10 @@ async function main() {
       'Windows Electron; visible foreground window and isolated fictional demo library; GPU disabled for deterministic screenshots; native viewport captures; zoom is Electron webContents zoom, not a change to OS display settings.',
     checks: results,
     reducedMotion,
-    screenshotDirectory: `docs/screenshots/v${version}`,
+    screenshotDirectory: 'test-results/screenshots',
     failures: results.filter((r) => r.overflow || r.tinyText.length).map((r) => r.page)
   }
-  mkdirSync('docs/reports', { recursive: true })
-  writeFileSync(`docs/reports/design-qa-v${version}.json`, JSON.stringify(report, null, 2) + '\n')
+  writeReport('design-qa', report)
   console.log(JSON.stringify({ pages: results.length, failures: report.failures, reducedMotion }))
 }
 main()

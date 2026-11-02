@@ -806,8 +806,7 @@ export class LibraryService {
     ]
     let cities: City[] = []
     try {
-      if (this.options.assetsPath)
-        cities = loadCities(this.options.assetsPath)
+      if (this.options.assetsPath) cities = loadCities(this.options.assetsPath)
     } catch {}
     const canonical = (name: string, country: string, fallbackId: string) => {
       const code = country === '中国' ? 'CN' : country === '日本' ? 'JP' : country

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { geoMercator, geoPath } from 'd3-geo'
-import { clusterMarkers, selectMapVisits, routeGeometry, validCoordinate } from '../src/renderer/map/domain'
+import { selectEligibleVisits, routeGeometry, validCoordinate } from '../src/renderer/map/domain'
 import type { AppSnapshot } from '../src/shared/types'
 
 describe('offline map geometry', () => {
@@ -20,19 +20,6 @@ describe('offline map geometry', () => {
     expect((path.match(/M/g) || []).length).toBe(2)
     expect(path).not.toContain('NaN')
   })
-  it('clusters in screen pixels and preserves members for later selection', () => {
-    const groups = clusterMarkers(
-      [
-        { id: 'a', x: 10, y: 10 },
-        { id: 'b', x: 12, y: 13 },
-        { id: 'c', x: 200, y: 10 }
-      ],
-      40
-    )
-    expect(groups).toHaveLength(2)
-    expect(groups[0].items.map((item) => item.id)).toEqual(['a', 'b'])
-    expect(groups[0].x).toBe(11)
-  })
   it('filters deleted trips, invalid coordinates, city and year while ordering visits', () => {
     const snapshot = {
       trips: [
@@ -51,11 +38,11 @@ describe('offline map geometry', () => {
         { id: 'unknown', tripId: 't', placeId: 'none', date: '2026-04-01', sortOrder: 0 }
       ]
     } as AppSnapshot
-    expect(selectMapVisits(snapshot, { year: '2026', cityId: 'hz' }).map((item) => item.visit.id)).toEqual([
-      'first',
-      'second'
-    ])
-    expect(selectMapVisits(snapshot, { cityId: 'other' })).toEqual([])
+    const located = selectEligibleVisits(snapshot, { year: '2026', cityId: 'hz' }).filter(({ place }) =>
+      validCoordinate(place.lat, place.lon)
+    )
+    expect(located.map((item) => item.visit.id)).toEqual(['first', 'second'])
+    expect(selectEligibleVisits(snapshot, { cityId: 'other' })).toEqual([])
   })
   it('uses the trip year for undated visits, and gives an explicit visit date priority', () => {
     const snapshot = {
@@ -66,7 +53,7 @@ describe('offline map geometry', () => {
         { id: 'dated', tripId: 't', placeId: 'p', date: '2026-01-01', sortOrder: 1 }
       ]
     } as AppSnapshot
-    expect(selectMapVisits(snapshot, { year: '2025' }).map((item) => item.visit.id)).toEqual(['undated'])
-    expect(selectMapVisits(snapshot, { year: '2026' }).map((item) => item.visit.id)).toEqual(['dated'])
+    expect(selectEligibleVisits(snapshot, { year: '2025' }).map((item) => item.visit.id)).toEqual(['undated'])
+    expect(selectEligibleVisits(snapshot, { year: '2026' }).map((item) => item.visit.id)).toEqual(['dated'])
   })
 })

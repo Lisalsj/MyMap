@@ -11,6 +11,7 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
@@ -80,7 +81,6 @@
         "filter": [
           "package.json",
           "LICENSE*",
-          "lib/**/*.js",
           "**/*.cjs",
           "**/*.js",
           "!bin/**/*"
@@ -92,7 +92,6 @@
         "filter": [
           "package.json",
           "LICENSE*",
-          "lib/**/*.js",
           "**/*.cjs",
           "**/*.js",
           "!bin/**/*"
@@ -104,7 +103,6 @@
         "filter": [
           "package.json",
           "LICENSE*",
-          "lib/**/*.js",
           "**/*.cjs",
           "**/*.js",
           "!bin/**/*"

@@ -7,7 +7,7 @@
  * window for foreground GPU measurements, closes it, then removes only that profile.
  */
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { cpus, platform, release, tmpdir } from 'node:os'
 import { performance } from 'node:perf_hooks'
@@ -18,22 +18,20 @@ import type { GeometryCollection, Topology } from 'topojson-specification'
 import { LibraryService } from '../src/backend/library'
 import { loadCities } from '../src/shared/cities'
 import type { City } from '../src/shared/types'
-import { createSnapshotIndex, getSnapshotIndex, matchingTrips } from '../src/renderer/model'
+import { matchingTrips } from '../src/renderer/model'
+import { createSnapshotIndex, getSnapshotIndex } from '../src/renderer/snapshotIndex'
 import {
   buildCityLights,
-  clusterMarkers,
   selectEligibleVisits,
   validCoordinate,
   type BoundaryFeature,
   type BoundaryIndex
 } from '../src/renderer/map/domain'
-import { clusterProjectedMarkers, toScreen } from '../src/renderer/map/geometry'
+import { clusterProjectedMarkers } from '../src/renderer/map/geometry'
+import { writeReport, screenshotsDirectory as screenshotDirectory } from './lib/artifacts.cjs'
 
 const repository = resolve('.')
-const appVersion = JSON.parse(readFileSync(join(repository, 'package.json'), 'utf8')).version
 const profilePrefix = 'mymap-map-benchmark-'
-const reportPath = join(repository, `docs/reports/map-performance-v${appVersion}.json`)
-const screenshotDirectory = join(repository, `docs/screenshots/v${appVersion}`)
 const tripCount = 100
 const visitsPerTrip = 50
 const durationMs = 3000
@@ -339,7 +337,7 @@ function removeOwnTemporaryProfile(profile: string) {
 async function main() {
   if (process.argv.includes('--help')) {
     console.log(
-      'Run from the repository root: npx tsx scripts/benchmark-map.ts [--selectors-only]. Optional MYMAP_EXECUTABLE selects a packaged MyMap.exe. Shows an independent benchmark window; writes the versioned map performance report and screenshots.'
+      'Run from the repository root: npx tsx scripts/benchmark-map.ts [--selectors-only]. Optional MYMAP_EXECUTABLE selects a packaged MyMap.exe. Shows an isolated benchmark window unless --selectors-only is set. Writes test-results/reports/map-performance.json and test-results/screenshots/.'
     )
     return
   }
@@ -436,8 +434,7 @@ async function main() {
         buildCityLights(selectEligibleVisits(snapshot), atlas.regions, atlas.index)
       )
     }
-    // Compare the old and new marker preparation on the same geographic fixture.
-    // These Node timings exclude SVG painting and must not be read as frame times.
+    // Node preparation timings exclude SVG painting and whole-frame scheduling.
     const markerWidth = 1120,
       markerHeight = 584,
       markerView = { zoom: 1, x: 0, y: 0 }
@@ -450,31 +447,14 @@ async function main() {
       const base = markerProjection([item.place.lon!, item.place.lat!])
       return base ? [{ ...item, base }] : []
     })
-    const prepareLegacyMarkers = () =>
-      clusterMarkers(
-        markerPoints.flatMap(({ base, ...item }) => {
-          const [x, y] = toScreen(base, markerView)
-          return x >= -25 && x < markerWidth + 25 && y >= -25 && y < markerHeight + 25
-            ? [{ ...item, x, y }]
-            : []
-        })
-      )
-    const prepareFusedMarkers = () =>
-      clusterProjectedMarkers(markerPoints, markerView, markerWidth, markerHeight)
-    const markerSignature = (
-      clusters: readonly { x: number; y: number; items: readonly { visit: { id: string } }[] }[]
-    ) => JSON.stringify(clusters.map((c) => ({ x: c.x, y: c.y, ids: c.items.map((p) => p.visit.id) })))
-    if (markerSignature(prepareLegacyMarkers()) !== markerSignature(prepareFusedMarkers()))
-      throw new Error('Marker preparation changed cluster positions or membership')
+    const prepareMarkers = () => clusterProjectedMarkers(markerPoints, markerView, markerWidth, markerHeight)
     report.markerPreparation = {
       scope: 'Node CPU preparation only; excludes browser SVG painting and whole-frame scheduling.',
       points: markerPoints.length,
       width: markerWidth,
       height: markerHeight,
       viewport: markerView,
-      outputEqual: true,
-      legacy: measureSync(prepareLegacyMarkers),
-      fused: measureSync(prepareFusedMarkers)
+      timing: measureSync(prepareMarkers)
     }
     library.close()
     library = undefined
@@ -584,8 +564,8 @@ async function main() {
     await delay(300)
     await page.screenshot({ path: join(screenshotDirectory, 'map-city-detail.png') })
     report.screenshots = [
-      `docs/screenshots/v${appVersion}/map-overview.png`,
-      `docs/screenshots/v${appVersion}/map-city-detail.png`
+      'test-results/screenshots/map-overview.png',
+      'test-results/screenshots/map-city-detail.png'
     ]
     report.status = 'complete'
   } catch (error) {
@@ -620,8 +600,7 @@ async function main() {
       process.exitCode = interrupted ? 130 : 1
     }
     report.finishedAt = new Date().toISOString()
-    mkdirSync(dirname(reportPath), { recursive: true })
-    writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n')
+    const reportPath = writeReport('map-performance', report)
     console.log(
       JSON.stringify({
         status: report.status,

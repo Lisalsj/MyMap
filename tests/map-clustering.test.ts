@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { clusterMarkers } from '../src/renderer/map/domain'
 import { clusterProjectedMarkers, toScreen, type Point, type Viewport } from '../src/renderer/map/geometry'
 
 const initialView: Viewport = { zoom: 1, x: 0, y: 0 }
@@ -11,13 +10,20 @@ function originalClusters<T extends { id: string; base: Point }>(
   height: number,
   cellSize = 44
 ) {
-  return clusterMarkers(
-    points.flatMap(({ base, ...item }) => {
-      const [x, y] = toScreen(base, view)
-      return x >= -25 && x < width + 25 && y >= -25 && y < height + 25 ? [{ ...item, x, y }] : []
-    }),
-    cellSize
-  )
+  const cells = new Map<string, { id: string; x: number; y: number }[]>()
+  for (const { id, base } of points) {
+    const [x, y] = toScreen(base, view)
+    if (x < -25 || x >= width + 25 || y < -25 || y >= height + 25) continue
+    const key = `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`
+    const items = cells.get(key) || []
+    items.push({ id, x, y })
+    cells.set(key, items)
+  }
+  return [...cells.values()].map((items) => ({
+    x: items.reduce((sum, point) => sum + point.x, 0) / items.length,
+    y: items.reduce((sum, point) => sum + point.y, 0) / items.length,
+    items
+  }))
 }
 
 function comparable<T extends { id: string }>(clusters: { x: number; y: number; items: T[] }[]) {

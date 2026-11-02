@@ -3,11 +3,11 @@ const { _electron: electron } = require('@playwright/test')
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join, resolve, basename, dirname } = require('node:path')
+const { writeReport, screenshotsDirectory: directory } = require('./lib/artifacts.cjs')
 const version = require('../package.json').version
 const parent = realpathSync(tmpdir()),
   prefix = 'mymap-focus-capture-'
 const root = mkdtempSync(join(parent, prefix))
-const directory = resolve(`docs/screenshots/v${version}`)
 const evidence = []
 let app
 
@@ -89,8 +89,7 @@ async function main() {
       'One fictional local trip and one Wuhu city visit; visible Electron window; default GPU; city zoom 15.',
     evidence
   }
-  mkdirSync('docs/reports', { recursive: true })
-  writeFileSync(`docs/reports/map-focus-v${version}.json`, JSON.stringify(report, null, 2) + '\n')
+  writeReport('map-focus', report)
   if (evidence.some((e) => e.outlineStyle !== 'none' || !e.focused || !e.selected))
     throw new Error('Unexpected city focus/selection state; inspect the recorded evidence')
   if (

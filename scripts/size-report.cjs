@@ -1,5 +1,6 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const { writeReport } = require('./lib/artifacts.cjs')
 function bytes(target) {
   if (!fs.existsSync(target)) return 0
   const stat = fs.statSync(target)
@@ -29,8 +30,7 @@ function report(root = 'release/win-unpacked', version = require('../package.jso
 if (require.main === module) {
   const version = process.argv[2] || require('../package.json').version
   const result = report('release/win-unpacked', version)
-  fs.mkdirSync('docs/reports', { recursive: true })
-  fs.writeFileSync(`docs/reports/size-v${version}.json`, JSON.stringify(result, null, 2) + '\n')
+  writeReport('size', result)
   console.log(JSON.stringify(result, null, 2))
 }
 module.exports = { bytes, report }

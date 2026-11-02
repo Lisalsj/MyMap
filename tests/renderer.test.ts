@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AppSnapshot, Entry, Trip } from '../src/shared/types'
 import {
-  activeAttachments,
-  activeEntries,
-  activeVisits,
   DraftQueue,
   matchingTrips,
   mediaId,
@@ -12,6 +9,7 @@ import {
   type Draft
 } from '../src/renderer/model'
 import { buildVisitInput, effectiveVisitDate, manualCityId } from '../src/renderer/model'
+import { getSnapshotIndex } from '../src/renderer/snapshotIndex'
 
 const trip = (id: string, deletedAt: string | null = null): Trip => ({
   id,
@@ -119,10 +117,10 @@ describe('renderer data rules', () => {
     ])
   })
   it('excludes deleted trips and their entries, photos and visits from all views', () => {
-    const s = snapshot()
-    expect(activeVisits(s)).toHaveLength(3)
-    expect(activeEntries(s)).toHaveLength(1)
-    expect(activeAttachments(s)).toHaveLength(1)
+    const index = getSnapshotIndex(snapshot())
+    expect(index.activeVisits).toHaveLength(3)
+    expect(index.activeEntries).toHaveLength(1)
+    expect(index.activeAttachments).toHaveLength(1)
   })
   it('searches tags, places and journal content and combines year and city filters', () => {
     const s = snapshot()

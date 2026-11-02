@@ -13,14 +13,13 @@
   src: url('@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-400-normal.woff2') format('woff2');
 }
 :root {
-  font-family: 'Manrope', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
-  color: #233b31;
-  background: #f7f4ed;
+  color: var(--ink);
+  background: var(--paper);
   --font-sans: 'Manrope', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
-  --serif: var(--font-sans);
   --paper: #f7f4ed;
   --surface: #fffdf8;
   --surface-subtle: #eeefe6;
@@ -46,7 +45,6 @@
   --space-12: 3rem;
   --space-16: 4rem;
   --space-20: 5rem;
-  --space-24: 6rem;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -77,7 +75,6 @@
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --duration-fast: 200ms;
   --duration-base: 300ms;
-  --duration-panel: 700ms;
   --z-navigation: 10;
   --z-dropdown: 20;
   --z-modal: 30;

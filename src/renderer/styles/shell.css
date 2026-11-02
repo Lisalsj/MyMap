@@ -369,18 +369,6 @@
   color: var(--muted);
   max-width: 42rem;
 }
-.page-heading-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.heading-dot {
-  color: var(--green);
-  padding-left: var(--space-2);
-}
-.heading-quote {
-  display: none;
-}
 .filter-bar {
   display: flex;
   align-items: center;

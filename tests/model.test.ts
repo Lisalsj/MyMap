@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AppSnapshot, Entry, Photo, PhotoAttachment, Place, Trip, Visit } from '../src/shared/types'
-import {
-  activeAttachments,
-  activeEntries,
-  activeTrips,
-  activeVisits,
-  matchingTrips,
-  orderedVisits,
-  passport
-} from '../src/renderer/model'
+import { matchingTrips, passport } from '../src/renderer/model'
+import { getSnapshotIndex } from '../src/renderer/snapshotIndex'
 
 const trip = (id: string, changes: Partial<Trip> = {}): Trip => ({
   id,
@@ -93,7 +86,7 @@ const snapshot = (changes: Partial<AppSnapshot> = {}): AppSnapshot => ({
   attachments: [],
   ...changes
 })
-const ids = (items: { id: string }[]) => items.map((item) => item.id)
+const ids = (items: readonly { id: string }[]) => items.map((item) => item.id)
 
 describe('indexed renderer selector semantics', () => {
   it('keeps active visit input order and stable per-trip stop order without dropping unlocated cities', () => {
@@ -108,10 +101,11 @@ describe('indexed renderer selector semantics', () => {
         visit('missing-place', { placeId: 'absent' })
       ]
     })
-    expect(ids(activeVisits(s))).toEqual(['second', 'first', 'tie'])
-    expect(ids(orderedVisits(s, 'a'))).toEqual(['first', 'tie', 'second'])
-    expect(orderedVisits(s, 'hidden')).toEqual([])
-    expect(orderedVisits(s, 'absent')).toEqual([])
+    const index = getSnapshotIndex(s)
+    expect(ids(index.activeVisits)).toEqual(['second', 'first', 'tie'])
+    expect(ids(index.orderedVisitsByTrip.get('a')!)).toEqual(['first', 'tie', 'second'])
+    expect(index.orderedVisitsByTrip.has('hidden')).toBe(false)
+    expect(index.orderedVisitsByTrip.has('absent')).toBe(false)
     expect(ids(s.visits)).toEqual(['second', 'first', 'tie', 'hidden', 'missing-trip', 'missing-place'])
   })
 
@@ -125,9 +119,13 @@ describe('indexed renderer selector semantics', () => {
         trip('hidden', { deletedAt: '2026-01-01', updatedAt: '2030-01-01' })
       ]
     })
-    expect(ids(activeTrips(s))).toEqual(['updated-later', 'created-later', 'old', 'same-date'])
-    activeTrips(s).reverse()
-    expect(ids(activeTrips(s))).toEqual(['updated-later', 'created-later', 'old', 'same-date'])
+    expect(ids(getSnapshotIndex(s).activeTrips)).toEqual([
+      'updated-later',
+      'created-later',
+      'old',
+      'same-date'
+    ])
+    expect(ids(s.trips)).toEqual(['old', 'created-later', 'updated-later', 'same-date', 'hidden'])
   })
 
   it('excludes deleted, orphaned and deleted-photo content while preserving attachment and entry order', () => {
@@ -151,12 +149,11 @@ describe('indexed renderer selector semantics', () => {
         attachment('orphan-photo', { photoId: 'absent' })
       ]
     })
-    expect(ids(activeEntries(s))).toEqual(['second', 'first'])
-    expect(ids(activeAttachments(s))).toEqual(['second', 'first'])
-    activeEntries(s).pop()
-    activeAttachments(s).pop()
-    expect(activeEntries(s)).toHaveLength(2)
-    expect(activeAttachments(s)).toHaveLength(2)
+    const index = getSnapshotIndex(s)
+    expect(ids(index.activeEntries)).toEqual(['second', 'first'])
+    expect(ids(index.activeAttachments)).toEqual(['second', 'first'])
+    expect(s.entries).toHaveLength(5)
+    expect(s.attachments).toHaveLength(7)
   })
 
   it('counts repeated city and scenic visits once per city with earliest explicit dates and undated cities last', () => {
