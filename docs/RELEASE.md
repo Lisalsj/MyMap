@@ -30,6 +30,8 @@ npm run checksums
 
 [Windows 工作流](../.github/workflows/windows.yml) 在主分支检查源码应用；标签或手动运行时生成程序并测试真实打包产物。失败诊断保留在 Actions 附件，已存在的 Release 不自动覆盖。
 
+若账户或运行器限制导致云端任务无法启动，应在本机完成相同验证，再上传到草稿 Release，逐项核对附件大小、哈希与更新清单后公开。恢复 GitHub 账户状态后，后续标签仍可自动构建和发布。
+
 日常文档只描述当前功能和维护方法，历史改动由 Git 与 [Releases](https://github.com/Lisalsj/MyMap/releases) 保存。测试工具的报告和截图写入 `test-results/`，不按版本重复提交。
 
 ## 下载与升级说明
