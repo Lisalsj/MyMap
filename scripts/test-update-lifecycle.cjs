@@ -79,7 +79,9 @@ async function main() {
   try {
     const requests = []
     let feedOnline = true,
-      slowDownload = false
+      slowDownload = false,
+      slowBytes = 0,
+      slowClosed = false
     let manifest, installer
     server = http.createServer((request, response) => {
       const name = new URL(request.url, 'http://127.0.0.1').pathname.slice(1)
@@ -103,17 +105,22 @@ async function main() {
         'Content-Type': 'application/octet-stream'
       })
       const stream = fs.createReadStream(installer, { highWaterMark: 256 * 1024 })
-      let resumeTimer
-      if (slowDownload)
-        stream.on('data', () => {
-          stream.pause()
-          resumeTimer = setTimeout(() => stream.resume(), 100)
-        })
+      const throttled = slowDownload
       response.on('close', () => {
-        clearTimeout(resumeTimer)
+        if (throttled) slowClosed = true
         stream.destroy()
       })
-      stream.pipe(response)
+      if (throttled)
+        void (async () => {
+          for await (const chunk of stream) {
+            if (response.destroyed) return
+            response.write(chunk)
+            slowBytes += chunk.length
+            await delay(100)
+          }
+          response.end()
+        })().catch(() => response.destroy())
+      else stream.pipe(response)
     })
     const oldFeed = reuse
       ? JSON.parse(fs.readFileSync(path.join(root, 'config.json'), 'utf8')).publish.url
@@ -235,9 +242,11 @@ async function main() {
     await page.evaluate(() => window.myMap.checkForUpdates())
     slowDownload = true
     const cancelledDownload = page.evaluate(() => window.myMap.downloadUpdate())
-    await waitFor(() => requests.includes('MyMapUpdateTest-0.0.2.exe'))
+    await waitFor(() => slowBytes > 0)
     await page.evaluate(() => window.myMap.cancelUpdateDownload())
     if ((await cancelledDownload).stage !== 'available') throw Error('Cancelled download was not retryable')
+    await waitFor(() => slowClosed)
+    if (slowBytes >= fs.statSync(installer).size) throw Error('Cancellation did not stop the file transfer')
     report.downloadCancellationVerified = true
     slowDownload = false
     console.log('Checking real downloaded-file checksum rejection')

@@ -5,16 +5,43 @@ import { app } from 'electron'
 export async function createUpdaterAdapter(): Promise<UpdateAdapter> {
   const { NsisUpdater, CancellationToken } = await import('electron-updater')
   const { ElectronAppAdapter } = await import('electron-updater/out/ElectronAppAdapter')
+  const { ElectronHttpExecutor } = await import('electron-updater/out/electronHttpExecutor')
   const testFeed = __MYMAP_UPDATE_TEST_URL__
   const adapter = new (class extends ElectronAppAdapter {
     override get baseCachePath() {
       return app.getPath('userData')
     }
   })()
+  class AbortableExecutor extends ElectronHttpExecutor {
+    private requests = new Set<Electron.ClientRequest>()
+    override createRequest(...args: Parameters<InstanceType<typeof ElectronHttpExecutor>['createRequest']>) {
+      const [options, onResponse] = args
+      const request = super.createRequest(options, (response) => {
+        const release = () => this.requests.delete(request)
+        response.once('end', release)
+        response.once('close', release)
+        response.once('error', release)
+        onResponse(response)
+      })
+      this.requests.add(request)
+      // Electron can close the outgoing GET body before the response is delivered.
+      // Keep tracking until its response finishes, or the request aborts/fails.
+      request.once('abort', () => this.requests.delete(request))
+      request.once('error', () => this.requests.delete(request))
+      return request
+    }
+    abortDownloads() {
+      for (const request of this.requests) request.abort()
+      this.requests.clear()
+    }
+  }
   class LocalUpdater extends NsisUpdater {
     protected override readonly app = adapter
+    readonly httpExecutor = new AbortableExecutor((info, callback) => this.emit('login', info, callback))
   }
-  const updater = new LocalUpdater(
+  const updater = new LocalUpdater()
+  // Configure the fixed provider after the request-tracking executor is initialized.
+  updater.setFeedURL(
     testFeed
       ? { provider: 'generic', url: testFeed }
       : { provider: 'github', owner: 'Lisalsj', repo: 'MyMap', private: false }
@@ -65,6 +92,9 @@ export async function createUpdaterAdapter(): Promise<UpdateAdapter> {
     },
     cancel() {
       cancellation?.cancel()
+      // The pinned runtime rejects its stream promise on cancellation but can leave
+      // the Electron request alive. Abort it explicitly, including redirect requests.
+      updater.httpExecutor.abortDownloads()
     },
     install() {
       updater.quitAndInstall(true, true)
