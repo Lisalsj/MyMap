@@ -8,6 +8,7 @@ import { getSnapshotIndex } from '../snapshotIndex'
 import { TripCard } from './TripCard'
 
 interface Props {
+  active: boolean
   snapshot: AppSnapshot
   tripId: string
   year: string
@@ -22,6 +23,7 @@ interface Props {
   onPickLocation: (lat: number, lon: number) => void
 }
 export function MapPage({
+  active,
   snapshot,
   tripId,
   year,
@@ -60,6 +62,7 @@ export function MapPage({
         <section className="map-card" aria-label="我的城市版图">
           <div className="home-map">
             <FootprintMap
+              active={active}
               snapshot={snapshot}
               tripId={tripId || undefined}
               year={year || undefined}

@@ -1,8 +1,20 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { MyMapApi, ImportProgress } from '../shared/types'
+import type { MyMapApi, ImportProgress, UpdateState } from '../shared/types'
 const call = <T>(method: string, ...args: unknown[]): Promise<T> =>
   ipcRenderer.invoke('mymap:call', method, args)
 const api: MyMapApi = {
+  updateState: () => call('updateState'),
+  setUpdateChecks: (enabled) => call('setUpdateChecks', enabled),
+  checkForUpdates: () => call('checkForUpdates'),
+  downloadUpdate: () => call('downloadUpdate'),
+  cancelUpdateDownload: () => call('cancelUpdateDownload'),
+  installUpdate: () => call('installUpdate'),
+  openUpdateDownload: () => call('openUpdateDownload'),
+  onUpdate: (handler) => {
+    const listener = (_: unknown, state: UpdateState) => handler(state)
+    ipcRenderer.on('mymap:update', listener)
+    return () => ipcRenderer.removeListener('mymap:update', listener)
+  },
   snapshot: () => call('snapshot'),
   saveTrip: (input) => call('saveTrip', input),
   saveEntry: (input) => call('saveEntry', input),
@@ -42,3 +54,4 @@ ipcRenderer.on('mymap:flush', () => window.dispatchEvent(new Event('mymap:flush'
 window.addEventListener('mymap:flushed', () => ipcRenderer.send('mymap:flushed'))
 window.addEventListener('mymap:flush-failed', () => ipcRenderer.send('mymap:flush-failed'))
 window.addEventListener('mymap:ready', () => ipcRenderer.send('mymap:ready'))
+window.addEventListener('mymap:map-ready', () => ipcRenderer.send('mymap:map-ready'))

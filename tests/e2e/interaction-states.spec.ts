@@ -101,7 +101,7 @@ test('cards keep their own pressed feedback when motion is enabled', async ({ ap
     { navigation: '照片馆', selector: '.photo-tile', transform: 'matrix(1, 0, 0, 1, 0, 0)' }
   ]) {
     await page.getByRole('button', { name: control.navigation, exact: true }).click()
-    const target = page.locator(control.selector).first()
+    const target = page.locator(control.selector + ':visible').first()
     await holdPointer(page, target, async () => {
       await expect.soft(target).toHaveCSS('transform', control.transform)
     })
@@ -122,7 +122,7 @@ test('reduced motion keeps buttons and cards still while hovering and pressing',
     { navigation: '照片馆', selector: '.photo-tile' }
   ]) {
     await page.getByRole('button', { name: control.navigation, exact: true }).click()
-    const target = page.locator(control.selector).first()
+    const target = page.locator(control.selector + ':visible').first()
     await target.hover()
     await expect.soft(target).toHaveCSS('transform', 'none')
     await holdPointer(page, target, async () => {
@@ -133,8 +133,8 @@ test('reduced motion keeps buttons and cards still while hovering and pressing',
 
 test('closing a location picked on the SVG returns keyboard focus to the map', async ({ appPage: page }) => {
   await page.getByRole('button', { name: '我的旅行', exact: true }).click()
-  await page.locator('.trip-card').filter({ hasText: '江南，慢一点' }).click()
-  const map = page.locator('.footprint-map')
+  await page.locator('.trip-card:visible').filter({ hasText: '江南，慢一点' }).click()
+  const map = page.locator('.footprint-map:visible')
   await expect(map).toHaveAttribute('aria-busy', 'false')
   await map.getByRole('button', { name: '地图选点', exact: true }).click()
   const svg = map.locator(':scope > svg')

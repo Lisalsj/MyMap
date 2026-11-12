@@ -30,6 +30,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import type { Confirmation, Page } from './pages/types'
 import { getSnapshotIndex } from './snapshotIndex'
 import { PageSkeleton } from './ui/primitives'
+import { useUpdates, UpdateNotice } from './ui/updates'
 const Gallery = lazy(() => import('./components/Gallery').then((module) => ({ default: module.Gallery })))
 const Journal = lazy(() => import('./components/Journal').then((module) => ({ default: module.Journal })))
 const TripEditor = lazy(() =>
@@ -48,6 +49,7 @@ const navigation: { id: Page; label: string; icon: typeof Map; hint: string }[] 
   { id: 'passport', label: '旅行护照', icon: Stamp, hint: '每一次抵达，都在这里留下印记。' }
 ]
 export default function App() {
+  const updateState = useUpdates()
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null),
     [loadError, setLoadError] = useState(''),
     [page, setPage] = useState<Page>('map'),
@@ -415,7 +417,7 @@ export default function App() {
             所有回忆，只留在你身边
             <small>
               <ShieldCheck size={12} />
-              完全离线 · 本地保存
+              旅行资料 · 本地保存
             </small>
           </div>
           <button
@@ -526,6 +528,11 @@ export default function App() {
           </div>
         )}
         <div className={`page-content page-${page}`} id="main-content" tabIndex={-1}>
+          <UpdateNotice
+            state={updateState}
+            guarded={guarded}
+            reportError={(message) => notify(message, true)}
+          />
           <section className="page-heading">
             <div>
               <div className="eyebrow">{snapshot.library.isDemo ? '演示资料库' : '属于你的旅行记录'}</div>
@@ -594,8 +601,9 @@ export default function App() {
               </span>
             </div>
           )}
-          {page === 'map' && (
+          <div hidden={page !== 'map'} inert={page !== 'map'} className="retained-map-page">
             <MapPage
+              active={page === 'map'}
               snapshot={snapshot}
               tripId={selectedTrip}
               year={year}
@@ -609,7 +617,7 @@ export default function App() {
               onClearFilters={clearFilters}
               onPickLocation={pickMapLocation}
             />
-          )}
+          </div>
           {page === 'trips' &&
             (detail && trip ? (
               <TripDetail
@@ -696,6 +704,8 @@ export default function App() {
           )}
           {page === 'settings' && (
             <SettingsPage
+              updateState={updateState}
+              reportError={(message) => notify(message, true)}
               snapshot={snapshot}
               run={run}
               confirm={setConfirmation}

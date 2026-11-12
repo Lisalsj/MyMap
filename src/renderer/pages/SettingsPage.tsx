@@ -1,16 +1,21 @@
 import { ArrowRight, FolderOpen, ShieldCheck, Sparkles, Trash2, Upload } from '../ui/icons'
-import type { AppSnapshot } from '../../shared/types'
+import type { AppSnapshot, UpdateState } from '../../shared/types'
+import { UpdateSettings } from '../ui/updates'
 import { version as appVersion } from '../../../package.json'
 import type { Confirmation, GuardedAction, RunOperation } from './types'
 import '../styles/settings.css'
 
 export function SettingsPage({
+  updateState,
+  reportError,
   snapshot,
   run,
   confirm,
   guarded,
   reset
 }: {
+  updateState?: UpdateState
+  reportError: (message: string) => void
   snapshot: AppSnapshot
   run: RunOperation
   confirm: (confirmation: Confirmation) => void
@@ -40,6 +45,7 @@ export function SettingsPage({
 
   return (
     <div className="settings-layout">
+      <UpdateSettings state={updateState} guarded={guarded} reportError={reportError} />
       <section className="settings-card library-setting">
         <div className="settings-section-heading">
           <span className="settings-icon">
@@ -176,8 +182,8 @@ export function SettingsPage({
       <section className="settings-privacy" aria-label="隐私与版本">
         <ShieldCheck size={24} />
         <div>
-          <h2>完全离线，只属于你</h2>
-          <p>无需账号、无需网络。地图、城市检索、照片和文字都在本地运行。</p>
+          <h2>回忆只属于你</h2>
+          <p>地图、城市检索、照片和文字都在本地运行。只有你选择检查或下载更新时，更新服务才会联网。</p>
           <p className="settings-version">MyMap {appVersion} · 私人旅行空间</p>
         </div>
       </section>

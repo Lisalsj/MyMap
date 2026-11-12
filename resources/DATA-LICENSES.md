@@ -18,6 +18,8 @@ land polygons. This is a generalized geographic background, not an administrativ
 boundary dataset or a navigation map. There are no online tiles. A separate,
 attributed administrative reference layer is described below.
 
+`world-context.json` is a simplified, four-decimal local context layer derived from the same bundled land snapshot. `npx tsx scripts/prepare-map-context.ts` rebuilds it and the shared-arc overview/regional city topologies. Display LODs retain city identities and island rings; coordinate-to-city matching uses the full boundary snapshot.
+
 ## Historical city and province boundary reference
 
 `src/renderer/assets/china-cities.topo.json` and `china-city-index.json` form a

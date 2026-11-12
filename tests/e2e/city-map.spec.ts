@@ -49,7 +49,8 @@ test('city areas light once, remain readable while zooming, and follow filters a
     await expect(page.locator('.map-city-inspector')).toContainText('1 段旅行')
     await page.getByRole('button', { name: '聚焦这座城市' }).click()
     await expect(page.locator('.map-city-inspector')).toContainText('杭州')
-    // Viewport changes must not regenerate any land/admin SVG path.
+    await expect(page.locator('.footprint-map:visible')).toHaveAttribute('data-lod', '2')
+    // Within one LOD, viewport changes must not regenerate any land/admin SVG path.
     const original = await page
       .locator('.map-base-layer path')
       .evaluateAll((paths) => paths.map((p) => p.getAttribute('d')))
@@ -67,10 +68,10 @@ test('city areas light once, remain readable while zooming, and follow filters a
     await page.reload()
     await expect(page.getByTestId('city-light-count')).toHaveText('2')
     await page.getByRole('button', { name: /世界/, exact: false }).filter({ hasText: '世界' }).last().click()
-    await expect(page.locator('.footprint-map')).toHaveAttribute('data-scope', 'world')
+    await expect(page.locator('.footprint-map:visible')).toHaveAttribute('data-scope', 'world')
     await expect(page.locator('.map-marker')).toHaveCount(1)
-    await page.locator('.trip-card').filter({ hasText: '城市点亮回归' }).click()
-    const map = page.locator('.footprint-map')
+    await page.locator('.trip-card:visible').filter({ hasText: '城市点亮回归' }).click()
+    const map = page.locator('.footprint-map:visible')
     await expect(map.locator('.map-city-region[data-lit="true"]')).toHaveCount(2)
     await page.getByRole('button', { name: '放大地图', exact: true }).click()
     await map.locator(':scope > svg').focus()

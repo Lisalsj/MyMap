@@ -104,6 +104,14 @@
     ]
   },
   {
+    "package": "argparse",
+    "version": "2.0.1",
+    "license": "Python-2.0",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
     "package": "bail",
     "version": "2.0.2",
     "license": "MIT",
@@ -216,6 +224,30 @@
     ]
   },
   {
+    "package": "electron-updater",
+    "version": "6.8.12",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "electron-updater/node_modules/builder-util-runtime",
+    "version": "9.7.1",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "electron-updater/node_modules/semver",
+    "version": "7.7.4",
+    "license": "ISC",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
     "package": "escape-string-regexp",
     "version": "5.0.0",
     "license": "MIT",
@@ -243,6 +275,22 @@
     "package": "extend",
     "version": "3.0.2",
     "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "fs-extra",
+    "version": "10.1.0",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "graceful-fs",
+    "version": "4.2.11",
+    "license": "ISC",
     "files": [
       "LICENSE"
     ]
@@ -325,6 +373,38 @@
     "license": "MIT",
     "files": [
       "license"
+    ]
+  },
+  {
+    "package": "js-yaml",
+    "version": "4.3.2",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "jsonfile",
+    "version": "6.2.1",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "lodash.escaperegexp",
+    "version": "4.1.2",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "lodash.isequal",
+    "version": "4.5.0",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
     ]
   },
   {
@@ -784,6 +864,14 @@
     ]
   },
   {
+    "package": "sax",
+    "version": "1.6.1",
+    "license": "BlueOak-1.0.0",
+    "files": [
+      "LICENSE.md"
+    ]
+  },
+  {
     "package": "scheduler",
     "version": "0.28.0",
     "license": "MIT",
@@ -834,6 +922,14 @@
   {
     "package": "style-to-object",
     "version": "1.0.14",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "tiny-typed-emitter",
+    "version": "2.1.0",
     "license": "MIT",
     "files": [
       "LICENSE"
@@ -917,6 +1013,14 @@
     "license": "MIT",
     "files": [
       "license"
+    ]
+  },
+  {
+    "package": "universalify",
+    "version": "2.0.1",
+    "license": "MIT",
+    "files": [
+      "LICENSE"
     ]
   },
   {

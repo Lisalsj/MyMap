@@ -120,7 +120,30 @@ export interface ImportOptions {
   entryId?: string | null
 }
 export type EntityKind = 'trip' | 'entry' | 'attachment'
+export interface UpdateState {
+  enabled: boolean | null
+  supported: boolean
+  portable: boolean
+  stage: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
+  currentVersion: string
+  latestVersion?: string
+  releaseNotes?: string
+  size?: number
+  percent?: number
+  transferred?: number
+  error?: string
+  lastCheckedAt?: number
+  automatic: boolean
+}
 export interface MyMapApi {
+  updateState(): Promise<UpdateState>
+  setUpdateChecks(enabled: boolean): Promise<UpdateState>
+  checkForUpdates(): Promise<UpdateState>
+  downloadUpdate(): Promise<UpdateState>
+  cancelUpdateDownload(): Promise<void>
+  installUpdate(): Promise<void>
+  openUpdateDownload(): Promise<void>
+  onUpdate(handler: (state: UpdateState) => void): () => void
   snapshot(): Promise<AppSnapshot>
   saveTrip(input: TripInput): Promise<Trip>
   saveEntry(input: EntryInput): Promise<Entry>

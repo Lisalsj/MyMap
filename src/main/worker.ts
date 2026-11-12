@@ -1,5 +1,6 @@
 import { LibraryService } from '../backend/library'
 import type { ImportProgress } from '../shared/types'
+import { loadCities } from '../shared/cities'
 
 type Message = { id: number; method: string; args: unknown[] }
 const port = process.parentPort!
@@ -8,6 +9,7 @@ let importing: Promise<unknown> | null = null
 let operation: Promise<unknown> | null = null
 let switching = false
 let stopping = false
+let cityAssetsPath = ''
 const methods = new Set([
   'snapshot',
   'saveTrip',
@@ -35,6 +37,7 @@ port.on('message', async ({ data }: { data: Message }) => {
     if (method === 'init') {
       if (importing || operation) throw new Error('请等待照片导入或备份结束后再切换资料库')
       const [path, isDemo, assetsPath] = args as [string, boolean, string]
+      cityAssetsPath = assetsPath
       if (library?.snapshot().library.path === path) result = library.snapshot()
       else {
         switching = true
@@ -53,6 +56,21 @@ port.on('message', async ({ data }: { data: Message }) => {
           switching = false
         }
       }
+    } else if (method === 'cities') {
+      const query = args[0] as string
+      const cities = loadCities(cityAssetsPath)
+      result = !query
+        ? cities.filter((city) => city.country === 'CN').slice(0, 12)
+        : cities
+            .filter((city) =>
+              `${city.name} ${city.aliases} ${city.country} ${city.region}`
+                .toLocaleLowerCase()
+                .includes(query)
+            )
+            .sort(
+              (a, b) => Number(b.name === query) - Number(a.name === query) || b.population - a.population
+            )
+            .slice(0, 30)
     } else if (method === 'restoreBackup') {
       if (importing || operation) throw new Error('请先结束照片导入或备份')
       const task = LibraryService.restoreBackup(args[0] as string, args[1] as string)

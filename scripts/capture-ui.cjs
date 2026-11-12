@@ -95,6 +95,7 @@ async function main() {
     window.focus()
   })
   await page.getByRole('button', { name: '新建旅行', exact: true }).first().waitFor()
+  await page.evaluate(() => window.myMap.setUpdateChecks(false))
   await page.locator('.map-city-region').first().waitFor()
   await page.evaluate(() => document.fonts.load('16px "Noto Sans SC"', '旅行图鉴'))
   const pages = [
@@ -117,7 +118,7 @@ async function main() {
   await captureViewport('photo-detail.png')
   await page.getByRole('button', { name: '关闭照片', exact: true }).click()
   await navigate(page, '我的旅行')
-  await page.locator('.trip-card').filter({ hasText: '江南' }).first().click()
+  await page.locator('.trip-card:visible').filter({ hasText: '江南' }).first().click()
   await page.locator('.detail-map .map-city-region').first().waitFor()
   await ready(page)
   await audit(page, 'trip-detail-1440-100')
@@ -151,7 +152,7 @@ async function main() {
     }
   }
   await navigate(page, '我的旅行')
-  await page.locator('.trip-card').filter({ hasText: '江南' }).first().click()
+  await page.locator('.trip-card:visible').filter({ hasText: '江南' }).first().click()
   await page.getByRole('button', { name: '添加地点', exact: true }).first().click()
   await ready(page)
   await audit(page, 'visit-editor-1100-150')

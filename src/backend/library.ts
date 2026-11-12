@@ -736,8 +736,8 @@ export class LibraryService {
         start: '2025-04-12',
         end: '2025-04-15',
         city: '杭州',
-        cityId: 'cn-hangzhou',
-        country: '中国',
+        cityId: 'geonames:1808926',
+        country: 'CN',
         lat: 30.25,
         lon: 120.15,
         place: '西湖',
@@ -748,8 +748,8 @@ export class LibraryService {
         start: '2025-07-08',
         end: '2025-07-12',
         city: '青岛',
-        cityId: 'cn-qingdao',
-        country: '中国',
+        cityId: 'geonames:1797929',
+        country: 'CN',
         lat: 36.06,
         lon: 120.38,
         place: '海边散步',
@@ -760,8 +760,8 @@ export class LibraryService {
         start: '2025-10-03',
         end: '2025-10-09',
         city: '京都',
-        cityId: 'jp-kyoto',
-        country: '日本',
+        cityId: 'geonames:1857910',
+        country: 'JP',
         lat: 35.01,
         lon: 135.77,
         place: '鸭川',
@@ -778,8 +778,8 @@ export class LibraryService {
     const detours = [
       {
         name: '苏州',
-        id: 'cn-suzhou',
-        country: '中国',
+        id: 'geonames:1886760',
+        country: 'CN',
         lat: 31.3,
         lon: 120.58,
         date: '2025-04-14',
@@ -787,8 +787,8 @@ export class LibraryService {
       },
       {
         name: '烟台',
-        id: 'cn-yantai',
-        country: '中国',
+        id: 'geonames:1787093',
+        country: 'CN',
         lat: 37.46,
         lon: 121.45,
         date: '2025-07-10',
@@ -796,23 +796,16 @@ export class LibraryService {
       },
       {
         name: '大阪',
-        id: 'jp-osaka',
-        country: '日本',
+        id: 'geonames:1853909',
+        country: 'JP',
         lat: 34.69,
         lon: 135.5,
         date: '2025-10-07',
         place: '中之岛'
       }
     ]
-    let cities: City[] = []
-    try {
-      if (this.options.assetsPath) cities = loadCities(this.options.assetsPath)
-    } catch {}
-    const canonical = (name: string, country: string, fallbackId: string) => {
-      const code = country === '中国' ? 'CN' : country === '日本' ? 'JP' : country
-      const city = cities.find((c) => c.country === code && c.name === name)
-      return { cityId: city?.id || fallbackId, cityName: city?.name || name, country: city?.country || code }
-    }
+    // The six fictional stops use IDs from the bundled GeoNames snapshot. Seeding
+    // them should not decode the complete worldwide search index at startup.
     for (const [index, story] of stories.entries()) {
       const trip = this.saveTrip({
         title: story.title,
@@ -825,7 +818,9 @@ export class LibraryService {
         tripId: trip.id,
         name: story.place,
         kind: 'scenic',
-        ...canonical(story.city, story.country, story.cityId),
+        cityId: story.cityId,
+        cityName: story.city,
+        country: story.country,
         lat: story.lat,
         lon: story.lon,
         date: story.start,
@@ -836,7 +831,9 @@ export class LibraryService {
         tripId: trip.id,
         name: detour.place,
         kind: 'scenic',
-        ...canonical(detour.name, detour.country, detour.id),
+        cityId: detour.id,
+        cityName: detour.name,
+        country: detour.country,
         lat: detour.lat,
         lon: detour.lon,
         date: detour.date,

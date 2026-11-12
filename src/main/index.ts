@@ -2,13 +2,16 @@ import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell, uti
 import { join, resolve } from 'node:path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import type { AppSnapshot, City, ImportProgress } from '../shared/types'
-import { loadCities } from '../shared/cities'
+import type { AppSnapshot, ImportProgress } from '../shared/types'
 import { assetPath, isTrustedUrl, allowedRequest, mediaRequest } from './security'
+import { version as appVersion } from '../../package.json'
+import { UpdateService, type UpdatePreferences } from './updates'
+import { createUpdaterAdapter } from './updaterAdapter'
 
 const developmentUrl = process.env.ELECTRON_RENDERER_URL
 const profile =
   process.env.MYMAP_TEST_ROOT ||
+  __MYMAP_UPDATE_TEST_ROOT__ ||
   join(process.env.LOCALAPPDATA || app.getPath('appData'), app.isPackaged ? 'MyMap' : 'MyMap-development')
 mkdirSync(profile, { recursive: true })
 app.setPath('userData', profile)
@@ -16,21 +19,29 @@ app.commandLine.appendSwitch('disable-background-networking')
 app.commandLine.appendSwitch('disable-component-update')
 app.commandLine.appendSwitch('disable-domain-reliability')
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints')
+if (__MYMAP_UPDATE_TEST_URL__ && /^\d{2,5}$/.test(__MYMAP_UPDATE_TEST_DEBUG_PORT__))
+  app.commandLine.appendSwitch('remote-debugging-port', __MYMAP_UPDATE_TEST_DEBUG_PORT__)
 protocol.registerSchemesAsPrivileged([
   { scheme: 'mymap', privileges: { standard: true, secure: true, supportFetchAPI: true } },
   { scheme: 'mymap-media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ])
 const settingsFile = join(profile, 'settings.json')
 let personalLibrary = join(profile, 'Library')
+let updatePreferences: UpdatePreferences = { enabled: null }
 try {
   const value = JSON.parse(readFileSync(settingsFile, 'utf8'))
   if (typeof value.library === 'string' && value.library) personalLibrary = resolve(value.library)
+  if (value.updates && typeof value.updates.enabled === 'boolean')
+    updatePreferences.enabled = value.updates.enabled
+  if (Number.isFinite(value.updates?.lastAttemptAt) && value.updates.lastAttemptAt > 0)
+    updatePreferences.lastAttemptAt = value.updates.lastAttemptAt
 } catch {
   /* first launch */
 }
 let demo = process.env.MYMAP_DEMO === '1'
 let window: BrowserWindow | null = null
 let worker: Electron.UtilityProcess | null = null
+let initialLibrary: Promise<unknown> | undefined
 let nextId = 0,
   closing = false,
   allowClose = false,
@@ -38,12 +49,11 @@ let nextId = 0,
 let flushTimer: NodeJS.Timeout | undefined
 const pending = new Map<
   number,
-  { resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
+  { method: string; resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
 >()
 const assetsRoot = app.isPackaged
   ? join(process.resourcesPath, 'data')
   : resolve(__dirname, '../../resources')
-let cities: City[] = []
 function rpc<T = any>(method: string, ...args: unknown[]): Promise<T> {
   return new Promise((res, reject) => {
     if (!worker) return reject(new Error('资料服务尚未就绪'))
@@ -55,13 +65,13 @@ function rpc<T = any>(method: string, ...args: unknown[]): Promise<T> {
       },
       ['importPhotos', 'backup', 'restoreBackup', 'shutdown'].includes(method) ? 3600000 : 30000
     )
-    pending.set(id, { resolve: res, reject, timer })
+    pending.set(id, { method, resolve: res, reject, timer })
     worker.postMessage({ id, method, args })
   })
 }
 function saveSettings(): void {
   const temp = `${settingsFile}.tmp`
-  writeFileSync(temp, JSON.stringify({ library: personalLibrary }, null, 2))
+  writeFileSync(temp, JSON.stringify({ library: personalLibrary, updates: updatePreferences }, null, 2))
   require('node:fs').renameSync(temp, settingsFile)
 }
 async function switchLibrary(path: string, isDemo: boolean): Promise<void> {
@@ -98,19 +108,59 @@ const forwarded = new Set([
   'updateAttachment',
   'confirmPhotoLocation'
 ])
+const updates = new UpdateService({
+  currentVersion: app.getVersion?.() || appVersion,
+  supported: app.isPackaged,
+  portable: Boolean(process.env.PORTABLE_EXECUTABLE_FILE),
+  preferences: updatePreferences,
+  save: (preferences) => {
+    const previous = updatePreferences
+    updatePreferences = { ...preferences }
+    try {
+      saveSettings()
+    } catch (error) {
+      updatePreferences = previous
+      throw error
+    }
+  },
+  createAdapter: createUpdaterAdapter,
+  changed: (state) => window?.webContents.send('mymap:update', state)
+})
+let updateExit: { resolve: () => void; reject: (error: Error) => void } | undefined
+function rejectUpdateExit(error: unknown) {
+  updateExit?.reject(error instanceof Error ? error : Error(String(error)))
+  updateExit = undefined
+}
+function libraryOperationRunning() {
+  return [...pending.values()].some((request) =>
+    ['backup', 'restoreBackup', 'importPhotos', 'init', 'exportEntry'].includes(request.method)
+  )
+}
 async function handle(method: string, args: any[]): Promise<any> {
+  if (method === 'updateState') return updates.snapshot()
+  if (method === 'setUpdateChecks') {
+    if (typeof args[0] !== 'boolean') throw Error('无效更新设置')
+    return updates.setEnabled(args[0])
+  }
+  if (method === 'checkForUpdates') return updates.check()
+  if (method === 'downloadUpdate') return updates.download()
+  if (method === 'cancelUpdateDownload') return updates.cancel()
+  if (method === 'openUpdateDownload')
+    return shell.openExternal('https://github.com/Lisalsj/MyMap/releases/latest')
+  if (method === 'installUpdate') {
+    if (closing || updates.snapshot().stage !== 'ready') throw Error('当前没有可安装的更新，或程序正在退出。')
+    if (libraryOperationRunning() || (await rpc<ImportProgress>('importProgress')).running)
+      throw Error('请等待照片导入、备份或恢复完成后再更新。')
+    if (closing || libraryOperationRunning()) throw Error('请等待当前资料操作完成后再更新。')
+    return new Promise<void>((resolve, reject) => {
+      updateExit = { resolve, reject }
+      window!.close()
+    })
+  }
   if (method === 'snapshot') return rpc<AppSnapshot>('snapshot')
   if (forwarded.has(method)) return rpc(method, ...args)
-  if (method === 'cities') {
-    const query = typeof args[0] === 'string' ? args[0].trim().toLocaleLowerCase().slice(0, 120) : ''
-    if (!query) return cities.filter((city) => city.country === 'CN').slice(0, 12)
-    return cities
-      .filter((city) =>
-        `${city.name} ${city.aliases} ${city.country} ${city.region}`.toLocaleLowerCase().includes(query)
-      )
-      .sort((a, b) => Number(b.name === query) - Number(a.name === query) || b.population - a.population)
-      .slice(0, 30)
-  }
+  if (method === 'cities')
+    return rpc('cities', typeof args[0] === 'string' ? args[0].trim().toLocaleLowerCase().slice(0, 120) : '')
   if (method === 'importPhotos' || method === 'importDroppedPhotos') {
     let paths: string[]
     if (method === 'importPhotos') {
@@ -173,6 +223,8 @@ async function handle(method: string, args: any[]): Promise<any> {
   throw new Error('不支持的操作')
 }
 async function shutdown(): Promise<void> {
+  updates.dispose()
+  await initialLibrary?.catch(() => {})
   try {
     await rpc('shutdown')
   } catch {
@@ -190,6 +242,36 @@ function resumeEditing(): void {
   closing = false
   window?.setEnabled(true)
 }
+function createLibraryWorker() {
+  const instance = utilityProcess.fork(join(__dirname, 'worker.js'), [], {
+    serviceName: 'MyMap 本地资料服务',
+    stdio: 'pipe'
+  })
+  worker = instance
+  instance.stderr?.on('data', (data) => {
+    if (process.env.MYMAP_TEST_ROOT || !app.isPackaged) process.stderr.write(data)
+  })
+  instance.on('message', (message: any) => {
+    if (message.event === 'progress') {
+      window?.webContents.send('mymap:progress', message.progress as ImportProgress)
+      return
+    }
+    const request = pending.get(message.id)
+    if (!request) return
+    clearTimeout(request.timer)
+    pending.delete(message.id)
+    message.error ? request.reject(new Error(message.error)) : request.resolve(message.result)
+  })
+  instance.on('exit', (code) => {
+    if (worker !== instance) return
+    worker = null
+    for (const request of pending.values()) {
+      clearTimeout(request.timer)
+      request.reject(new Error(`资料服务已停止（${code}），请重新打开程序`))
+    }
+    pending.clear()
+  })
+}
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', () => {
@@ -199,44 +281,14 @@ else {
   app
     .whenReady()
     .then(async () => {
-      worker = utilityProcess.fork(join(__dirname, 'worker.js'), [], {
-        serviceName: 'MyMap 本地资料服务',
-        stdio: 'pipe'
-      })
-      worker.stderr?.on('data', (data) => {
-        if (process.env.MYMAP_TEST_ROOT || !app.isPackaged) process.stderr.write(data)
-      })
-      worker.on('message', (message: any) => {
-        if (message.event === 'progress') {
-          window?.webContents.send('mymap:progress', message.progress as ImportProgress)
-          return
-        }
-        const request = pending.get(message.id)
-        if (!request) return
-        clearTimeout(request.timer)
-        pending.delete(message.id)
-        message.error ? request.reject(new Error(message.error)) : request.resolve(message.result)
-      })
-      worker.on('exit', (code) => {
-        worker = null
-        for (const request of pending.values()) {
-          clearTimeout(request.timer)
-          request.reject(new Error(`资料服务已停止（${code}），请重新打开程序`))
-        }
-        pending.clear()
-      })
-      try {
-        cities = loadCities(assetsRoot)
-      } catch {
-        /* still allow manually entered locations */
-      }
-      try {
-        await rpc('init', demo ? join(profile, 'Demo') : personalLibrary, demo, assetsRoot)
-      } catch (error) {
+      createLibraryWorker()
+      // Start Chromium and the local library together. Renderer calls wait for the
+      // initial library, while the window, fonts and page modules can load in parallel.
+      initialLibrary = rpc('init', demo ? join(profile, 'Demo') : personalLibrary, demo, assetsRoot)
+      void initialLibrary.catch(async (error) => {
         reportStartupError('无法打开 MyMap 资料库', error)
         await shutdown()
-        return
-      }
+      })
       protocol.handle('mymap', async (request) => {
         try {
           const file = assetPath(join(__dirname, '../renderer'), request.url)
@@ -245,7 +297,7 @@ else {
           const headers = new Headers(response.headers)
           headers.set(
             'Content-Security-Policy',
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' mymap-media: data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' mymap-media: data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"
           )
           return new Response(response.body, { status: response.status, headers })
         } catch {
@@ -294,7 +346,7 @@ else {
       window.webContents.on('will-navigate', (event, url) => {
         if (!isTrustedUrl(url, developmentUrl)) event.preventDefault()
       })
-      ipcMain.handle('mymap:call', (event, method: unknown, args: unknown) => {
+      ipcMain.handle('mymap:call', async (event, method: unknown, args: unknown) => {
         if (
           event.sender.id !== window?.webContents.id ||
           !event.senderFrame ||
@@ -305,7 +357,15 @@ else {
           args.length > 5
         )
           throw new Error('无效操作来源')
+        await initialLibrary
         return handle(method, args)
+      })
+      ipcMain.on('mymap:map-ready', (event) => {
+        if (
+          event.sender.id === window?.webContents.id &&
+          isTrustedUrl(event.senderFrame?.url || '', developmentUrl)
+        )
+          updates.uiReady()
       })
       ipcMain.on('mymap:ready', (event) => {
         if (event.sender.id === window?.webContents.id) dataReady = true
@@ -315,7 +375,40 @@ else {
         clearTimeout(flushTimer)
         flushTimer = undefined
         try {
+          await initialLibrary
           const progress = await rpc<ImportProgress>('importProgress')
+          if (updateExit) {
+            if (progress.running || libraryOperationRunning()) {
+              rejectUpdateExit(Error('请等待照片导入、备份或恢复完成后再更新。'))
+              resumeEditing()
+              return
+            }
+            let stopped = false
+            try {
+              await rpc('shutdown')
+              stopped = true
+              await updates.install()
+              allowClose = true
+              updates.dispose()
+              worker?.kill()
+              worker = null
+              updateExit.resolve()
+              updateExit = undefined
+            } catch (error) {
+              if (stopped) {
+                const previous = worker
+                worker = null
+                previous?.kill()
+                createLibraryWorker()
+                await rpc('init', demo ? join(profile, 'Demo') : personalLibrary, demo, assetsRoot).catch(
+                  () => {}
+                )
+              }
+              rejectUpdateExit(error)
+              resumeEditing()
+            }
+            return
+          }
           if (progress.running) {
             const choice = await dialog.showMessageBox(window!, {
               type: 'question',
@@ -333,6 +426,11 @@ else {
           window?.setEnabled(false)
           await shutdown()
         } catch (error) {
+          if (updateExit) {
+            rejectUpdateExit(error)
+            resumeEditing()
+            return
+          }
           resumeEditing()
           const detail = `${String(error)}\n\n已保存的资料会保留。请先复制保留尚未保存的草稿，再重试关闭或重新打开程序。选择“仍要退出”会关闭当前窗口，未保存的内容需要自行保留。`
           const choice = await dialog
@@ -356,7 +454,10 @@ else {
         }
       })
       ipcMain.on('mymap:flush-failed', (event) => {
-        if (closing && event.sender.id === window?.webContents.id) resumeEditing()
+        if (closing && event.sender.id === window?.webContents.id) {
+          rejectUpdateExit(Error('当前草稿未保存，更新已取消。'))
+          resumeEditing()
+        }
       })
       window.on('close', (event) => {
         if (allowClose) return
@@ -371,6 +472,7 @@ else {
         window?.webContents.send('mymap:flush')
         flushTimer = setTimeout(() => {
           if (closing && !allowClose) {
+            rejectUpdateExit(Error('退出前保存超时，更新已取消。'))
             resumeEditing()
             void dialog.showMessageBox(window!, {
               type: 'warning',

@@ -12,10 +12,28 @@ const state = vi.hoisted(() => ({
   choices: [] as number[],
   startupErrors: [] as string[],
   rejectLoad: null as null | ((error: Error) => void),
+  initialize: () => Promise.resolve(),
+  requests: [] as string[],
   progress: () => Promise.resolve({ running: false }),
   shutdown: () => Promise.resolve(),
-  quit: false
+  quit: false,
+  updateReady: false,
+  updateInstalls: 0
 }))
+vi.mock('../src/main/updates', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/main/updates')>()
+  return {
+    ...original,
+    UpdateService: class extends original.UpdateService {
+      override snapshot() {
+        return { ...super.snapshot(), ...(state.updateReady ? { stage: 'ready' as const } : {}) }
+      }
+      override async install() {
+        state.updateInstalls++
+      }
+    }
+  }
+})
 vi.mock('electron', async () => {
   const { EventEmitter } = await import('node:events')
   class Window extends EventEmitter {
@@ -43,6 +61,9 @@ vi.mock('electron', async () => {
     }
     isDestroyed() {
       return this.destroyed
+    }
+    close() {
+      this.emit('close', { preventDefault() {} })
     }
     loadURL() {
       return new Promise<void>((_resolve, reject) => {
@@ -91,12 +112,15 @@ vi.mock('electron', async () => {
         const worker = new EventEmitter() as any
         worker.kill = () => {}
         worker.postMessage = ({ id, method }: any) => {
+          state.requests.push(method)
           const work =
-            method === 'importProgress'
-              ? state.progress()
-              : method === 'shutdown'
-                ? state.shutdown()
-                : Promise.resolve({})
+            method === 'init'
+              ? state.initialize()
+              : method === 'importProgress'
+                ? state.progress()
+                : method === 'shutdown'
+                  ? state.shutdown()
+                  : Promise.resolve({})
           work.then(
             (result) => worker.emit('message', { id, result }),
             (error) => worker.emit('message', { id, error: String(error) })
@@ -138,6 +162,10 @@ beforeEach(async () => {
   state.startupErrors = []
   state.rejectLoad = null
   state.quit = false
+  state.updateReady = false
+  state.updateInstalls = 0
+  state.initialize = () => Promise.resolve()
+  state.requests = []
   state.progress = () => Promise.resolve({ running: false })
   state.shutdown = () => Promise.resolve()
   profile = mkdtempSync(join(tmpdir(), 'mymap-close-'))
@@ -151,6 +179,43 @@ afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
   rmSync(profile, { recursive: true, force: true })
+})
+
+async function pendingStartup() {
+  let finish!: () => void
+  state.initialize = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve
+    })
+  state.requests = []
+  state.window = null
+  vi.resetModules()
+  await import('../src/main/index')
+  await tick()
+  return () => finish()
+}
+it('starts the window during library initialization but waits before reading its snapshot', async () => {
+  const finish = await pendingStartup()
+  expect(state.window).not.toBeNull()
+  let completed = false
+  const snapshot = state.calls.get('mymap:call')!(event(), 'snapshot', []).then(() => (completed = true))
+  await tick()
+  expect(state.requests).toEqual(['init'])
+  expect(completed).toBe(false)
+  finish()
+  await snapshot
+  expect(state.requests).toEqual(['init', 'snapshot'])
+})
+it('waits for initialization before closing the library when the loading window is closed', async () => {
+  const finish = await pendingStartup()
+  state.window.emit('close', { preventDefault: vi.fn() })
+  await tick()
+  expect(state.window.destroyed).toBe(false)
+  expect(state.requests).toEqual(['init'])
+  finish()
+  await tick()
+  expect(state.requests).toEqual(['init', 'shutdown'])
+  expect(state.window.destroyed).toBe(true)
 })
 
 it('does not show a startup failure when closing aborts an in-flight initial document load', async () => {
@@ -292,4 +357,44 @@ it('reenables input after a flush timeout and ignores a late acknowledgment', as
   expect(state.window.destroyed).toBe(false)
   close()
   expect(state.window.sent).toHaveLength(2)
+})
+
+it('cancels update installation on a failed draft save and keeps the editor usable', async () => {
+  state.updateReady = true
+  state.ipc.get('mymap:ready')!(event())
+  const result = state.calls.get('mymap:call')!(event(), 'installUpdate', [])
+  const expected = expect(result).rejects.toThrow(/草稿未保存/)
+  await tick()
+  expect(state.window.sent).toContain('mymap:flush')
+  state.ipc.get('mymap:flush-failed')!(event())
+  await expected
+  expect(state.updateInstalls).toBe(0)
+  expect(state.window.enabled).toBe(true)
+  expect(state.window.destroyed).toBe(false)
+})
+it('waits for the database shutdown acknowledgement before invoking the updater', async () => {
+  state.updateReady = true
+  state.ipc.get('mymap:ready')!(event())
+  let finish!: () => void
+  state.shutdown = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve
+    })
+  const install = state.calls.get('mymap:call')!(event(), 'installUpdate', [])
+  await tick()
+  const closing = flushed()
+  await tick()
+  expect(state.updateInstalls).toBe(0)
+  expect(state.window.enabled).toBe(false)
+  finish()
+  await closing
+  await install
+  expect(state.updateInstalls).toBe(1)
+})
+it('does not replace the executable while an import is running', async () => {
+  state.updateReady = true
+  state.progress = () => Promise.resolve({ running: true })
+  await expect(state.calls.get('mymap:call')!(event(), 'installUpdate', [])).rejects.toThrow(/导入/)
+  expect(state.updateInstalls).toBe(0)
+  expect(state.window.enabled).toBe(true)
 })

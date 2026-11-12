@@ -7,14 +7,16 @@
 ```powershell
 npm ci
 npm test
+npm run test:update # 独立测试应用的真实安装升级，不使用个人资料库
 npm run dist:win
 $env:MYMAP_EXECUTABLE = (Resolve-Path 'release/win-unpacked/MyMap.exe').Path
 npm run test:e2e
 Remove-Item Env:MYMAP_EXECUTABLE
+npm run verify:manifest
 npm run checksums
 ```
 
-`release/` 包含安装版、免安装版及 `SHA256SUMS.txt`。校验文件只适用于同一批构建产物；本机与云端程序因构建时间及环境不同，可能有不同哈希。
+`release/` 包含安装版、免安装版、`latest.yml` 和 `SHA256SUMS.txt`。更新器使用与安装包匹配的 `latest.yml`，需要一起上传。校验文件只适用于同一批构建产物；本机与云端程序因构建时间及环境不同，可能有不同哈希。
 
 发布前确认包内仅含程序、离线公共资源、虚构演示内容及必要许可，没有个人资料库、照片、备份或凭据。完整验证范围见 [验证方法](VALIDATION.md)。
 
@@ -23,7 +25,7 @@ npm run checksums
 1. 在 `package.json` 和锁文件中同步设置目标版本。
 2. 提交并推送源码，等待主分支工作流通过。
 3. 创建与包版本一致的 `v*` 标签并推送。
-4. 标签工作流通过成品测试后，自动创建 Release 并附上两种程序和校验文件。
+4. 标签工作流通过独立安装升级及成品测试后，先上传草稿 Release，核对安装包、更新元数据和附件，再公开发布。
 5. 检查公开下载、附件校验值及标签源码。
 
 [Windows 工作流](../.github/workflows/windows.yml) 在主分支检查源码应用；标签或手动运行时生成程序并测试真实打包产物。失败诊断保留在 Actions 附件，已存在的 Release 不自动覆盖。

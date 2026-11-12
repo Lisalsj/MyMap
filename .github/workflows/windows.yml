@@ -29,6 +29,9 @@ jobs:
       - name: Test source application
         if: env.PACKAGE_BUILD != 'true'
         run: npm run test:e2e
+      - name: Test installed update lifecycle
+        if: env.PACKAGE_BUILD == 'true'
+        run: npm run test:update
       - name: Build Windows executables
         if: env.PACKAGE_BUILD == 'true'
         run: npm run dist:win
@@ -39,7 +42,10 @@ jobs:
           MYMAP_EXECUTABLE: ${{ github.workspace }}\release\win-unpacked\MyMap.exe
       - name: Create executable checksums
         if: env.PACKAGE_BUILD == 'true'
-        run: npm run checksums
+        run: |
+          npm run verify:manifest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run checksums
       - name: Upload test failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
@@ -47,7 +53,11 @@ jobs:
           name: MyMap-test-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore
           retention-days: 7
-          path: test-results/
+          path: |
+            test-results/reports/
+            test-results/e2e/
+            test-results/packaged/
+            test-results/screenshots/
       - uses: actions/upload-artifact@v7
         if: env.PACKAGE_BUILD == 'true'
         with:
@@ -56,14 +66,34 @@ jobs:
           path: |
             release/*.exe
             release/SHA256SUMS.txt
+            release/latest.yml
       - name: Publish a new tagged release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY *> $null
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $assets = @("release/MyMap-$version-Setup-x64.exe", "release/MyMap-$version-Portable-x64.exe", 'release/SHA256SUMS.txt', 'release/latest.yml')
+          $draft = gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --json isDraft --jq .isDraft
           if ($LASTEXITCODE -ne 0) {
-            gh release create $env:GITHUB_REF_NAME release/*.exe release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --verify-tag --title "MyMap $env:GITHUB_REF_NAME" --generate-notes
+            gh release create $env:GITHUB_REF_NAME @assets --repo $env:GITHUB_REPOSITORY --verify-tag --draft --title "MyMap $env:GITHUB_REF_NAME" --generate-notes
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } elseif ($draft -eq 'true') {
+            gh release upload $env:GITHUB_REF_NAME @assets --repo $env:GITHUB_REPOSITORY --clobber
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            Write-Output 'Release already published; leaving its attachments intact.'
+            exit 0
           }
+          $metadata = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:GITHUB_REF_NAME" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($asset in $assets) {
+            $local = Get-Item -LiteralPath $asset
+            $remote = $metadata.assets | Where-Object { $_.name -eq $local.Name }
+            if (-not $remote -or $remote.size -ne $local.Length) { throw "Release attachment mismatch: $asset" }
+            $digest = 'sha256:' + (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($remote.digest -ne $digest) { throw "Release attachment checksum mismatch: $asset" }
+          }
+          gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

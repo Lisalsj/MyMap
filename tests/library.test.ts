@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { LibraryService } from '../src/backend/library'
+import { loadCities } from '../src/shared/cities'
 import sharp from 'sharp'
 
 const roots: string[] = []
@@ -108,12 +109,7 @@ describe('durable relational library', () => {
     await sharp({ create: { width: 12, height: 8, channels: 3, background: '#caa' } })
       .png()
       .toFile(join(assets, 'demo', 'one.png'))
-    writeFileSync(
-      join(assets, 'cities.json'),
-      JSON.stringify([
-        { id: 'geonames:1808926', name: '杭州', country: 'CN', lat: 30.29, lon: 120.16, aliases: '' }
-      ])
-    )
+    writeFileSync(join(assets, 'cities.json'), 'unavailable search index')
     const personal = new LibraryService(folder(), { assetsPath: assets })
     services.push(personal)
     await personal.seedDemo()
@@ -126,6 +122,12 @@ describe('durable relational library', () => {
     expect(new Set(demo.snapshot().places.map((p) => p.cityId)).size).toBeGreaterThan(3)
     expect(demo.snapshot().attachments).toHaveLength(3)
     expect(demo.snapshot().places.find((p) => p.cityName === '杭州')?.cityId).toBe('geonames:1808926')
+    const bundledCities = new Map(loadCities('resources').map((city) => [city.id, city]))
+    for (const place of demo.snapshot().places) {
+      const city = bundledCities.get(place.cityId)
+      expect(city?.name).toBe(place.cityName)
+      expect(city?.country).toBe(place.country)
+    }
   })
   it('blocks writes while backup is copying and rejects changed backup bytes', async () => {
     const db = library()

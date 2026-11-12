@@ -73,7 +73,13 @@ export function useDialogFocus(holder: RefObject<HTMLElement | null>, onEscape: 
         if (entry.prior?.isConnected && remaining.contains(entry.prior)) entry.prior.focus()
         else (focusable(remaining)[0] || remaining).focus()
       } else {
-        if (returnTarget?.isConnected) returnTarget.focus()
+        if (
+          returnTarget?.isConnected &&
+          returnTarget.getClientRects().length &&
+          !returnTarget.closest('[inert]')
+        )
+          returnTarget.focus()
+        else document.querySelector<HTMLElement>('.nav-item[aria-current="page"]')?.focus()
         returnTarget = null
       }
     }

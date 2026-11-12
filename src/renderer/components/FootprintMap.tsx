@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { geoGraticule10, geoMercator, geoPath, type GeoPermissibleObjects } from 'd3-geo'
+import { geoPath } from 'd3-geo'
 import {
   ArrowUpRight,
   Check,
@@ -18,14 +18,7 @@ import {
   X
 } from '../ui/icons'
 import type { AppSnapshot } from '../../shared/types'
-import {
-  buildCityLights,
-  routeGeometry,
-  selectEligibleVisits,
-  validCoordinate,
-  type BoundaryFeature,
-  type CityLight
-} from '../map/domain'
+import { routeGeometry, selectEligibleVisits, validCoordinate, type CityLight } from '../map/domain'
 import {
   clusterProjectedMarkers,
   fitBounds,
@@ -35,7 +28,9 @@ import {
   zoomViewport,
   type Viewport
 } from '../map/geometry'
-import { loadAtlas, type Atlas } from '../map/atlas'
+import { loadMapGeometry, loadMapLights } from '../map/atlas'
+import type { AtlasGeometry, MapRegion } from '../map/atlasTypes'
+import { mapFrame, mapLod } from '../map/projection'
 import './FootprintMap.css'
 
 interface Props {
@@ -46,6 +41,7 @@ interface Props {
   onVisitSelect?: (visitId: string) => void
   onPickLocation?: (lat: number, lon: number) => void
   playback?: boolean
+  active?: boolean
 }
 const INITIAL_VIEW: Viewport = { zoom: 1, x: 0, y: 0 }
 const worldLabels = [
@@ -59,25 +55,7 @@ const worldLabels = [
   ['开普敦', 18.42, -33.92]
 ] as const
 
-function createGeometry(atlas: Atlas, width: number, height: number, world: boolean) {
-  // Keep full geometry: SVG clips the viewport, so panning reveals the cached neighbours.
-  const projection = geoMercator()
-    .center(world ? [0, 18] : [104, 36])
-    .scale(world ? width / 6.5 : Math.min((width - 65) / 1.15, (height - 100) / 0.79))
-    .translate([width / 2, height / 2 + (world ? 0 : 5)])
-  const path = geoPath(projection).digits(2)
-  return {
-    projection,
-    path,
-    land: path(atlas.land as GeoPermissibleObjects) || '',
-    grid: path(geoGraticule10()) || '',
-    provinceFill: path(atlas.provinces as GeoPermissibleObjects) || '',
-    provinceBorders: path(atlas.provinceBorders) || '',
-    cityBorders: path(atlas.cityBorders) || '',
-    cities: atlas.regions.map((region) => ({ region, d: path(region) || '', bounds: path.bounds(region) }))
-  }
-}
-type Geometry = ReturnType<typeof createGeometry>
+type Geometry = AtlasGeometry & ReturnType<typeof mapFrame> & { path: ReturnType<typeof geoPath> }
 
 // A pan never reconciles hundreds of polygons or rebuilds a path.
 const BaseLayer = memo(function BaseLayer({
@@ -96,7 +74,7 @@ const BaseLayer = memo(function BaseLayer({
   select: (id: string) => void
 }) {
   return (
-    <g className="map-base-layer">
+    <g className="map-base-layer" transform={geometry.transform}>
       <path d={geometry.grid} className="map-grid" />
       <path d={geometry.land} className="map-land" />
       {!world && (
@@ -147,14 +125,15 @@ export const FootprintMap = memo(function FootprintMap({
   cityId,
   onVisitSelect,
   onPickLocation,
-  playback = false
+  playback = false,
+  active = true
 }: Props) {
   const holder = useRef<HTMLDivElement>(null),
     svg = useRef<SVGSVGElement>(null)
-  const [atlas, setAtlas] = useState<Atlas>(),
+  const [atlas, setAtlas] = useState<AtlasGeometry>(),
     [error, setError] = useState(''),
     [attempt, setAttempt] = useState(0)
-  const [size, setSize] = useState({ width: 900, height: 530 }),
+  const [size, setSize] = useState({ width: 0, height: 0 }),
     [world, setWorld] = useState(false)
   const [view, setView] = useState<Viewport>(INITIAL_VIEW),
     viewRef = useRef(view),
@@ -180,18 +159,24 @@ export const FootprintMap = memo(function FootprintMap({
     () => shown.filter((item) => validCoordinate(item.place.lat, item.place.lon)),
     [shown]
   )
-  const lights = useMemo(
-    () =>
-      atlas
-        ? buildCityLights(playback && tripId ? shown : eligible, atlas.regions, atlas.index)
-        : new Map<string, CityLight>(),
-    [atlas, eligible, shown, playback, tripId]
-  )
+  const [lights, setLights] = useState(new Map<string, CityLight>())
+  const [lightsReady, setLightsReady] = useState(false)
   const lit = useMemo(() => new Set<string>(lights.keys()), [lights])
-  const geometry = useMemo(
-    () => (atlas ? createGeometry(atlas, size.width, size.height, world) : undefined),
-    [atlas, size.width, size.height, world]
+  const mapLayout = useMemo(
+    () => mapFrame(world, Math.max(100, size.width), Math.max(150, size.height)),
+    [world, size.width, size.height]
   )
+  const lod = world ? 0 : mapLod(view.zoom * mapLayout.ratio)
+  const geometry = useMemo<Geometry | undefined>(
+    () =>
+      atlas && atlas.scope === (world ? 'world' : 'china')
+        ? { ...atlas, ...mapLayout, path: geoPath(mapLayout.projection).digits(2) }
+        : undefined,
+    [atlas, world, mapLayout]
+  )
+  useEffect(() => {
+    if (geometry && lightsReady && active) window.dispatchEvent(new Event('mymap:map-ready'))
+  }, [geometry, lightsReady, active])
   const updateView = useCallback((next: Viewport) => {
     viewRef.current = next
     if (!frame.current)
@@ -208,26 +193,46 @@ export const FootprintMap = memo(function FootprintMap({
   const zoom = (factor: number, anchor: [number, number] = [size.width / 2, size.height / 2]) =>
     updateView(zoomViewport(viewRef.current, factor, anchor))
   useEffect(() => {
-    let active = true
+    if (!active || !size.width || !size.height) return
+    let current = true
     setError('')
-    loadAtlas()
+    loadMapGeometry(world ? 'world' : 'china', lod)
       .then((data) => {
-        if (active) setAtlas(data)
+        if (current) setAtlas(data)
       })
       .catch((e) => {
-        if (active) setError(String(e))
+        if (current) setError(String(e))
       })
     return () => {
-      active = false
+      current = false
     }
-  }, [attempt])
+  }, [attempt, active, world, lod, size.width > 0, size.height > 0])
   useEffect(() => {
-    if (!holder.current) return
+    if (!active) return
+    let current = true
+    setLightsReady(false)
+    loadMapLights(playback && tripId ? shown : eligible)
+      .then((value) => {
+        if (current) {
+          setLights(value)
+          setLightsReady(true)
+        }
+      })
+      .catch((e) => {
+        if (current) setError(String(e))
+      })
+    return () => {
+      current = false
+    }
+  }, [attempt, active, eligible, shown, playback, tripId])
+  useEffect(() => {
+    if (!active || !holder.current) return
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect
       if (width > 0 && height > 0) {
-        setSize({ width, height })
-        updateView(INITIAL_VIEW)
+        setSize((previous) =>
+          previous.width === width && previous.height === height ? previous : { width, height }
+        )
       }
     })
     observer.observe(holder.current)
@@ -236,17 +241,25 @@ export const FootprintMap = memo(function FootprintMap({
       if (frame.current) cancelAnimationFrame(frame.current)
       frame.current = 0
     }
-  }, [updateView])
+  }, [updateView, active])
   useEffect(() => {
     if (!onPickLocation) setPicking(false)
   }, [onPickLocation])
+  useEffect(() => {
+    if (!active) {
+      setPlaying(false)
+      setPicking(false)
+      drag.current = null
+      setView(viewRef.current)
+    }
+  }, [active])
   useEffect(() => {
     setStep(1)
     setPlaying(false)
     setChosen(undefined)
   }, [signature, playback])
   useEffect(() => {
-    if (!playing || !playback || eligible.length < 2) return
+    if (!active || !playing || !playback || eligible.length < 2) return
     const timer = window.setInterval(
       () =>
         setStep((value) => {
@@ -259,7 +272,7 @@ export const FootprintMap = memo(function FootprintMap({
       1050
     )
     return () => clearInterval(timer)
-  }, [playing, playback, eligible.length])
+  }, [active, playing, playback, eligible.length])
   const localPoint = (event: { clientX: number; clientY: number }): [number, number] => {
     const rect = svg.current!.getBoundingClientRect()
     return [
@@ -273,11 +286,12 @@ export const FootprintMap = memo(function FootprintMap({
     zoom(Math.exp(-event.deltaY * 0.0015), localPoint(event))
   }
   useEffect(() => {
+    if (!active) return
     const element = svg.current
     const listener = (event: WheelEvent) => wheelAction.current(event)
     element?.addEventListener('wheel', listener, { passive: false })
     return () => element?.removeEventListener('wheel', listener)
-  }, [])
+  }, [active])
   const points = useMemo(
     () =>
       locatedShown.flatMap((item) => {
@@ -347,17 +361,11 @@ export const FootprintMap = memo(function FootprintMap({
       }
     )
   }, [atlas, geometry, world, lit, onlyLit, selectedId, selected, view, size])
-  function focusCity(region: BoundaryFeature) {
+  function focusCity(region: MapRegion) {
     const bounds = geometry?.cities.find((item) => item.region.properties.id === region.properties.id)?.bounds
     if (bounds)
       updateView(
-        fitBounds(
-          bounds as [[number, number], [number, number]],
-          size.width,
-          size.height,
-          Math.min(size.width * 0.24, 130),
-          15
-        )
+        fitBounds(geometry!.bounds(bounds), size.width, size.height, Math.min(size.width * 0.24, 130), 15)
       )
   }
   return (
@@ -365,7 +373,8 @@ export const FootprintMap = memo(function FootprintMap({
       className={`footprint-map ${picking ? 'is-picking' : ''} ${onlyLit ? 'only-lit' : ''}`}
       ref={holder}
       data-scope={world ? 'world' : 'china'}
-      aria-busy={!atlas && !error}
+      aria-busy={(!geometry || !lightsReady) && !error}
+      data-lod={atlas?.lod}
     >
       <svg
         ref={svg}
@@ -605,7 +614,7 @@ export const FootprintMap = memo(function FootprintMap({
           </button>
         )}
       </div>
-      {!atlas && (
+      {(!geometry || error) && (
         <div className="map-loading" role="status">
           <Compass size={28} />
           <strong>{error ? '离线地图暂时未能打开' : '正在展开你的地图…'}</strong>

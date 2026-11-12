@@ -13,6 +13,47 @@
   border-radius: var(--radius-xl);
   background: var(--surface);
 }
+.update-setting {
+  grid-column: 1 / -1;
+}
+.update-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--green-soft);
+}
+.update-notice > div:first-child {
+  flex: 1;
+  min-width: 16rem;
+}
+.update-notice p {
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
+.update-toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+}
+.update-toggle input {
+  width: var(--space-4);
+  min-height: var(--space-4);
+  accent-color: var(--green);
+}
+.update-release-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.update-setting progress {
+  width: 100%;
+  accent-color: var(--green);
+}
 .settings-section-heading {
   display: flex;
   align-items: flex-start;

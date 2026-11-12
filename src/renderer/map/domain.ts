@@ -96,6 +96,10 @@ const hongKongCountries = new Set(['hk', 'hkg', '香港', 'hongkong'])
 const macaoCountries = new Set(['mo', 'mac', '澳门', '澳門', 'macao', 'macau'])
 const countryKey = (country: string) =>
   country.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s/g, '')
+export function supportsCityBoundaryCountry(country: string) {
+  const key = countryKey(country)
+  return !key || chinaCountries.has(key) || hongKongCountries.has(key) || macaoCountries.has(key)
+}
 function allowsBoundary(feature: BoundaryFeature, country: string) {
   if (!country || chinaCountries.has(country)) return true
   if (feature.properties.kind !== 'special') return false
@@ -127,7 +131,6 @@ function lookupAtlas(atlas: readonly BoundaryFeature[]) {
   for (const feature of atlas) {
     const { id, name, aliases } = feature.properties
     lookup.byId.set(id, feature)
-    lookup.bounds.set(id, geoBounds(feature))
     for (const alias of [name, ...(aliases || [])]) {
       const key = normalizeCityName(alias)
       if (!key) continue
@@ -140,6 +143,7 @@ function lookupAtlas(atlas: readonly BoundaryFeature[]) {
   return lookup
 }
 function contains(feature: BoundaryFeature, point: [number, number], lookup: AtlasLookup) {
+  if (!lookup.bounds.has(feature.properties.id)) lookup.bounds.set(feature.properties.id, geoBounds(feature))
   const [[west, south], [east, north]] = lookup.bounds.get(feature.properties.id)!
   if (point[1] < south || point[1] > north) return false
   if (west <= east ? point[0] < west || point[0] > east : point[0] < west && point[0] > east) return false

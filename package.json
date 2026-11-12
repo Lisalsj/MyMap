@@ -1,6 +1,6 @@
 {
   "name": "mymap-travel-journal",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "MyMap · 旅行手账 — 完全离线的足迹、游记与本地照片库",
   "main": "./out/main/index.js",
   "author": "Lisalsj",
@@ -14,12 +14,15 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:update": "node scripts/test-update-lifecycle.cjs",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
     "dist:dir": "npm run build && electron-builder --win --dir --x64",
     "checksums": "node scripts/checksums.cjs",
+    "verify:manifest": "node scripts/verify-update-manifest.cjs",
     "size:report": "node scripts/size-report.cjs"
   },
   "dependencies": {
+    "electron-updater": "6.8.12",
     "exifr": "^7.1.3",
     "mdast-util-from-markdown": "^2.1.0",
     "mdast-util-gfm": "^3.1.0",
@@ -57,6 +60,12 @@
     "vitest": "latest"
   },
   "build": {
+    "publish": {
+      "provider": "github",
+      "owner": "Lisalsj",
+      "repo": "MyMap",
+      "releaseType": "release"
+    },
     "appId": "com.lisalsj.mymap",
     "productName": "MyMap",
     "directories": {
