@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { BookOpen, Check, Download, Eye, ImagePlus, PencilLine, Plus, Save, Trash2 } from '../ui/icons'
+import {
+  BookOpen,
+  Check,
+  Download,
+  Eye,
+  ImagePlus,
+  PencilLine,
+  Plus,
+  Save,
+  Trash2,
+  Expand,
+  Collapse
+} from '../ui/icons'
 import { photoUrl, type AppSnapshot, type Entry } from '../../shared/types'
 import { DraftQueue, mediaId, safeMarkdownUrl, type Draft, type SaveState } from '../model'
 import { getSnapshotIndex } from '../snapshotIndex'
@@ -44,6 +56,7 @@ export function Journal({
     [status, setStatus] = useState<SaveState>('saved'),
     [saveError, setSaveError] = useState(''),
     [preview, setPreview] = useState(false),
+    [focused, setFocused] = useState(false),
     [photoPicker, setPhotoPicker] = useState(false),
     [newTrip, setNewTrip] = useState(tripId || index.activeTrips[0]?.id || ''),
     [creating, setCreating] = useState(false)
@@ -124,9 +137,20 @@ export function Journal({
     }
   }
   const attachments = draft ? index.attachmentsByTrip.get(draft.tripId) || [] : []
+  useEffect(() => {
+    if (!focused) return
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
+        setFocused(false)
+        document.querySelector<HTMLButtonElement>('.writing-focus-button')?.focus()
+      }
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [focused])
   return (
-    <div className="journal-layout">
-      <aside className="journal-index">
+    <div className={`journal-layout ${focused && draft ? 'is-focused' : ''}`}>
+      <aside className="journal-index" hidden={focused && !!draft} inert={focused && !!draft}>
         <div className="journal-index-heading">
           <h2>手记目录</h2>
           <span>{entries.length} 篇</span>
@@ -219,6 +243,15 @@ export function Journal({
                 }
               </span>
               <div className="toolbar-actions">
+                <button
+                  className="icon-button writing-focus-button"
+                  aria-label={focused ? '退出专注' : '专注书写'}
+                  aria-pressed={focused}
+                  onClick={() => setFocused((value) => !value)}
+                >
+                  {focused ? <Collapse size={18} /> : <Expand size={18} />}
+                  <span>{focused ? '退出专注' : '专注'}</span>
+                </button>
                 <button
                   className="icon-button"
                   title={preview ? '继续编辑' : '预览排版'}

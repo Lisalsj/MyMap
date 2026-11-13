@@ -8,3 +8,4 @@ resources
 src/renderer/assets
 package-lock.json
 docs/screenshots
+src/renderer/public/taste/motion/motion.css

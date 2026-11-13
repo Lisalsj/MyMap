@@ -45,7 +45,6 @@ export function SettingsPage({
 
   return (
     <div className="settings-layout">
-      <UpdateSettings state={updateState} guarded={guarded} reportError={reportError} />
       <section className="settings-card library-setting">
         <div className="settings-section-heading">
           <span className="settings-icon">
@@ -71,6 +70,8 @@ export function SettingsPage({
           </button>
         </div>
       </section>
+
+      <UpdateSettings state={updateState} guarded={guarded} reportError={reportError} />
 
       <section className="settings-card backup-setting">
         <div className="settings-section-heading">

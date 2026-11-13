@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,14 +16,15 @@ import {
   Shuffle,
   Sparkles,
   Stamp,
+  Filters,
   X
 } from './ui/icons'
 import type { AppSnapshot, Entry, EntityKind, Trip } from '../shared/types'
 import { matches, matchingTrips, passport, tripDates, effectiveVisitDate } from './model'
-import { Empty, Modal, Spinner } from './components/Common'
+import { Modal, Spinner } from './components/Common'
 import type { InitialVisit } from './components/Editors'
 import { MapPage } from './pages/MapPage'
-import { TripCard } from './pages/TripCard'
+import { TripsPage } from './pages/TripsPage'
 import { TripDetail } from './pages/TripDetail'
 import { PassportPage } from './pages/PassportPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -60,6 +61,7 @@ export default function App() {
     [cityId, setCityId] = useState(''),
     [query, setQuery] = useState(''),
     [searchOpen, setSearchOpen] = useState(false),
+    [searchCursor, setSearchCursor] = useState(-1),
     [tripEditor, setTripEditor] = useState<Trip | null | false>(false),
     [visitEditor, setVisitEditor] = useState<{
       tripId: string
@@ -77,6 +79,9 @@ export default function App() {
   const registerFlush = useCallback((flush: () => Promise<void>) => {
     flushRef.current = flush
   }, [])
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [page, detail, detail ? selectedTrip : null])
   const notify = useCallback((message: string, error = false) => {
     setNotice({ message, error })
     if (noticeTimer.current) clearTimeout(noticeTimer.current)
@@ -213,11 +218,21 @@ export default function App() {
         event.preventDefault()
         searchInput.current?.focus()
         setSearchOpen(true)
+      } else if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === 'n' &&
+        !document.querySelector('[role="dialog"][aria-modal="true"]')
+      ) {
+        event.preventDefault()
+        setTripEditor(null)
       }
     }
     window.addEventListener('keydown', shortcut)
     return () => window.removeEventListener('keydown', shortcut)
   }, [])
+  useEffect(() => {
+    setSearchCursor(-1)
+  }, [query, searchOpen])
   const pickMapLocation = useCallback(
     (lat: number, lon: number) => {
       const index = snapshot && getSnapshotIndex(snapshot)
@@ -324,6 +339,10 @@ export default function App() {
         }))
     ]
   }, [snapshot, query, searchOpen])
+  useEffect(() => {
+    if (searchCursor >= 0)
+      document.getElementById(`search-result-${searchCursor}`)?.scrollIntoView({ block: 'nearest' })
+  }, [searchCursor])
   if (!snapshot)
     return (
       <div className="loading-screen">
@@ -379,8 +398,8 @@ export default function App() {
           </span>
         </button>
         <div className="sidebar-divider" />
-        <p className="nav-caption">去看看世界</p>
-        <nav>
+        <p className="nav-caption">旅行图鉴</p>
+        <nav aria-label="主要导航">
           {navigation.map((n) => (
             <button
               key={n.id}
@@ -398,6 +417,7 @@ export default function App() {
         </nav>
         <button
           className={`memory-card ${memory ? 'shuffling' : ''}`}
+          disabled={memory}
           onClick={pickMemory}
           aria-label="回忆盲盒"
           title="回忆盲盒：随机翻开一段旅行"
@@ -407,7 +427,7 @@ export default function App() {
           </span>
           <span>
             <strong>回忆盲盒</strong>
-            <small>随机回到某一段好时光</small>
+            <small>翻开一段旧日旅程</small>
           </span>
           <Shuffle size={15} />
         </button>
@@ -430,9 +450,7 @@ export default function App() {
             <Settings size={18} />
             <span>设置与资料库</span>
           </button>
-          <div className="sidebar-footer">
-            把每一次出发，留在这里。<span>↗</span>
-          </div>
+          <div className="sidebar-footer">MyMap · 私人旅行收藏</div>
         </div>
       </aside>
       <main className="main">
@@ -445,20 +463,47 @@ export default function App() {
           <div className="topbar-actions">
             <div className="global-search">
               <Search size={16} />
+              <label htmlFor="global-search-input" className="search-label">
+                搜索
+              </label>
               <input
+                id="global-search-input"
                 ref={searchInput}
                 aria-label="搜索旅行、地点、手记和标签"
-                placeholder="搜索旅行、城市或手记"
+                placeholder="旅行、城市或手记"
                 value={query}
+                aria-controls={searchOpen && query.trim() ? 'global-search-results' : undefined}
+                aria-activedescendant={
+                  searchCursor >= 0 && searchResults[searchCursor]
+                    ? `search-result-${searchCursor}`
+                    : undefined
+                }
                 onFocus={() => setSearchOpen(true)}
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') setSearchOpen(false)
+                  if (['ArrowDown', 'ArrowUp'].includes(event.key) && searchResults.length) {
+                    event.preventDefault()
+                    setSearchOpen(true)
+                    setSearchCursor((value) =>
+                      event.key === 'ArrowDown'
+                        ? (value + 1) % searchResults.length
+                        : (value <= 0 ? searchResults.length : value) - 1
+                    )
+                  }
+                  if (event.key === 'Enter' && searchOpen && searchCursor >= 0) {
+                    const result = searchResults[searchCursor]
+                    if (result) {
+                      event.preventDefault()
+                      result.kind === 'entry' ? openEntry(result.targetId) : openTrip(result.targetId)
+                    }
+                  }
                 }}
                 onChange={(e) => {
                   setQuery(e.target.value)
                   setSearchOpen(true)
                 }}
               />
+              {!query && <kbd className="search-shortcut">Ctrl K</kbd>}
               {query && (
                 <button
                   aria-label="清空搜索"
@@ -473,14 +518,17 @@ export default function App() {
               {searchOpen && query.trim() && (
                 <>
                   <div className="search-dismiss" onClick={() => setSearchOpen(false)} />
-                  <div className="search-results">
+                  <div className="search-results" id="global-search-results" aria-label="搜索结果">
                     <span className="section-label">
-                      寻找你的回忆 <small>{searchResults.length} 条结果</small>
+                      搜索结果 <small>{searchResults.length} 条 · ↑↓ 选择，Enter 打开</small>
                     </span>
                     {searchResults.length ? (
-                      searchResults.map((r) => (
+                      searchResults.map((r, resultIndex) => (
                         <button
                           key={r.id}
+                          id={`search-result-${resultIndex}`}
+                          className={searchCursor === resultIndex ? 'is-current' : ''}
+                          onMouseEnter={() => setSearchCursor(resultIndex)}
                           onClick={() => (r.kind === 'entry' ? openEntry(r.targetId) : openTrip(r.targetId))}
                         >
                           <r.icon size={17} />
@@ -510,7 +558,7 @@ export default function App() {
         {snapshot.library.isDemo && (
           <div className="demo-strip">
             <Sparkles size={14} />
-            正在浏览独立演示资料库，演示中的操作不会影响你的真实旅行。
+            独立演示资料库 · 操作不会影响个人旅行
             <button
               className="text-button"
               onClick={() =>
@@ -535,7 +583,18 @@ export default function App() {
           />
           <section className="page-heading">
             <div>
-              <div className="eyebrow">{snapshot.library.isDemo ? '演示资料库' : '属于你的旅行记录'}</div>
+              <div className="eyebrow">
+                {detail
+                  ? '旅行档案'
+                  : {
+                      map: '走过的地方',
+                      trips: '一程一册',
+                      journal: '路上的文字',
+                      gallery: '留住这一刻',
+                      passport: '我的城市收藏',
+                      settings: '本地资料管理'
+                    }[page]}
+              </div>
               <h1>{detail && trip ? trip.title : currentNav?.label || '设置与资料库'}</h1>
               <p>
                 {detail && trip
@@ -544,9 +603,14 @@ export default function App() {
               </p>
             </div>
             {page === 'map' && (
-              <span className="map-pill">
-                <span /> 城市版图
-              </span>
+              <div className="heading-tally">
+                <strong>{stamps.length.toString().padStart(2, '0')}</strong>
+                <span>
+                  个城市记录
+                  <br />
+                  {trips.length} 段旅行
+                </span>
+              </div>
             )}
             {detail && trip && (
               <button
@@ -563,33 +627,45 @@ export default function App() {
           </section>
           {!detail && ['map', 'trips', 'passport'].includes(page) && (
             <div className="filter-bar">
-              <span className="filter-title">沿途筛选</span>
-              <select aria-label="按年份筛选" value={year} onChange={(e) => setYear(e.target.value)}>
-                <option value="">所有年份</option>
-                {years.map((y) => (
-                  <option key={y}>{y}</option>
-                ))}
-              </select>
-              <select aria-label="按城市筛选" value={cityId} onChange={(e) => setCityId(e.target.value)}>
-                <option value="">所有城市</option>
-                {stamps.map((s) => (
-                  <option key={s.cityId} value={s.cityId}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="按旅行筛选"
-                value={selectedTrip}
-                onChange={(e) => setSelectedTrip(e.target.value)}
-              >
-                <option value="">所有旅行</option>
-                {trips.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
+              <span className="filter-title">
+                <Filters size={16} />
+                筛选足迹
+              </span>
+              <label className="filter-field">
+                <span>年份</span>
+                <select aria-label="按年份筛选" value={year} onChange={(e) => setYear(e.target.value)}>
+                  <option value="">所有年份</option>
+                  {years.map((y) => (
+                    <option key={y}>{y}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field">
+                <span>城市</span>
+                <select aria-label="按城市筛选" value={cityId} onChange={(e) => setCityId(e.target.value)}>
+                  <option value="">所有城市</option>
+                  {stamps.map((s) => (
+                    <option key={s.cityId} value={s.cityId}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field">
+                <span>旅行</span>
+                <select
+                  aria-label="按旅行筛选"
+                  value={selectedTrip}
+                  onChange={(e) => setSelectedTrip(e.target.value)}
+                >
+                  <option value="">所有旅行</option>
+                  {trips.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
               {(year || cityId || selectedTrip || query) && (
                 <button className="text-button" onClick={clearFilters}>
                   清除筛选
@@ -597,7 +673,7 @@ export default function App() {
                 </button>
               )}
               <span className="filter-note">
-                {trips.length ? '每一步，都算数。' : '世界很大，从第一站开始。'}
+                {filteredTrips.length} / {trips.length} 段旅行
               </span>
             </div>
           )}
@@ -647,24 +723,14 @@ export default function App() {
                 confirm={setConfirmation}
                 trash={() => trash('trip', trip.id)}
               />
-            ) : filteredTrips.length ? (
-              <div className="trip-grid">
-                {filteredTrips.map((t) => (
-                  <TripCard trip={t} snapshot={snapshot} key={t.id} onClick={() => openTrip(t.id)} />
-                ))}
-                <button className="new-trip-card" onClick={() => setTripEditor(null)}>
-                  <span>
-                    <Plus size={24} />
-                  </span>
-                  <h3>下一程，去哪里？</h3>
-                  <p>为新的故事，留一个位置</p>
-                </button>
-              </div>
             ) : (
-              <Empty
-                title={trips.length ? '还没有匹配的旅行' : '去往心里的那个地方'}
-                description="从一个旅行名称开始，慢慢填满沿途的风景与故事。"
-                action={() => setTripEditor(null)}
+              <TripsPage
+                snapshot={snapshot}
+                trips={filteredTrips}
+                hasTrips={trips.length > 0}
+                onTrip={openTrip}
+                onNew={createTrip}
+                onClear={clearFilters}
               />
             ))}
           {page === 'journal' && (

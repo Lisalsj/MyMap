@@ -39,5 +39,10 @@ export {
   Eye,
   NotePencil as PencilLine,
   FloppyDisk as Save,
-  Image
+  Image,
+  SquaresFour as Grid,
+  ListBullets as List,
+  ArrowsOutSimple as Expand,
+  ArrowsInSimple as Collapse,
+  SlidersHorizontal as Filters
 } from '@phosphor-icons/react'

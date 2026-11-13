@@ -132,7 +132,7 @@ test('manual cities, unlocated landmarks and shared-place visit edits persist co
     await page.getByRole('button', { name: '旅行护照', exact: true }).click()
     await page.getByRole('combobox', { name: '按年份筛选', exact: true }).selectOption('2025')
     await expect(page.locator('.city-stamp')).toHaveCount(2)
-    await expect(page.locator('.city-stamp').first()).toContainText('无日期')
+    await expect(page.locator('.city-stamp').first()).toContainText('未记日期')
   } finally {
     await app?.close().catch(() => {})
     rmSync(root, { recursive: true, force: true })

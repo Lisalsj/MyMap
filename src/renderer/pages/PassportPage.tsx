@@ -42,9 +42,9 @@ export function PassportPage({
         <div className="passport-banner-copy">
           <Globe2 size={32} aria-hidden="true" />
           <div>
-            <span className="section-label">我的城市收藏</span>
-            <h2>每一次抵达，都有迹可循</h2>
-            <p>把去过的城市收进护照，随时翻回那段旅程。</p>
+            <span className="passport-edition">MyMap · 城市护照</span>
+            <h2>每一座城，都有你的印记。</h2>
+            <p>一城一枚印章，再次到访，继续添上新的故事。</p>
           </div>
         </div>
         <div className="passport-total">
@@ -54,28 +54,33 @@ export function PassportPage({
       </section>
       {stamps.length ? (
         <div className="stamp-grid">
-          {stamps.map((stamp) => (
+          {stamps.map((stamp, order) => (
             <button
               className="city-stamp"
+              data-ink={stamp.cityId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % 3}
               key={stamp.cityId}
+              aria-label={`${stamp.name}，首次到访${stamp.date || '未记日期'}，${stamp.count} 次到访，查看旅行`}
               onClick={() => {
                 const id = firstTripByCity.get(stamp.cityId)
                 if (id) onTrip(id)
               }}
             >
               <span className="stamp-art" aria-hidden="true">
-                <span className="stamp-top">MYMAP · {stamp.country || '城市足迹'}</span>
+                <span className="stamp-top">
+                  {String(order + 1).padStart(2, '0')} / {stamp.country || '城市足迹'}
+                </span>
                 <MapPin size={32} />
                 <strong>{stamp.name}</strong>
-                <span className="stamp-bottom">已经抵达</span>
+                <span className="stamp-bottom">
+                  {stamp.date ? stamp.date.replaceAll('-', '.') : '未记日期'}
+                </span>
               </span>
               <span className="stamp-caption">
-                <strong>{stamp.name}</strong>
-                <span className="stamp-date">
-                  {stamp.date ? `首次到访 ${stamp.date.replaceAll('-', '.')}` : '无日期 · 已抵达'}
-                </span>
                 <span className="stamp-count">
-                  {stamp.count} 次到访
+                  <span>
+                    {stamp.name}
+                    <small>{stamp.count} 次到访</small>
+                  </span>
                   <ArrowRight size={18} aria-hidden="true" />
                 </span>
               </span>

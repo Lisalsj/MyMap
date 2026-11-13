@@ -84,7 +84,7 @@ export function MapPage({
         <div className="home-aside">
           <section className="stats-card" aria-label="资料库总览">
             <span className="eyebrow">资料库总览 · 全部记录</span>
-            <h3>一点点走远，一点点收藏</h3>
+            <h2>我的旅行收藏</h2>
             <div className="stats-row">
               <div>
                 <strong>{stamps.length.toString().padStart(2, '0')}</strong>
@@ -106,7 +106,7 @@ export function MapPage({
           </section>
           <section className="recent-journals">
             <div className="section-title">
-              <h3>最近写下</h3>
+              <h2>最近写下</h2>
               <button className="icon-button" aria-label="查看所有手记" onClick={onJournal}>
                 <ArrowRight size={20} />
               </button>
@@ -115,7 +115,7 @@ export function MapPage({
               <button key={entry.id} className="journal-preview" onClick={() => onEntry(entry.id)}>
                 <span className="journal-number">{String(i + 1).padStart(2, '0')}</span>
                 <div>
-                  <h4>{entry.title}</h4>
+                  <h3>{entry.title}</h3>
                   <p>
                     {entry.markdown.replace(/[#*_>![\]()`]/g, '').slice(0, 70) ||
                       '打开这页手记，接着写下去。'}

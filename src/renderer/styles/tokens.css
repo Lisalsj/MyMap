@@ -28,9 +28,11 @@
   --green-soft: #e3ebe1;
   --orange: #c47c55;
   --orange-dark: #9b5938;
-  --ink: #233b31;
-  --muted: #607166;
-  --line: #d9dfd2;
+  --ink: #24392f;
+  --muted: #56685c;
+  --line: #dde0d4;
+  --sidebar-width: 208px;
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --danger: #9b4039;
   --danger-soft: #f6e9e4;
   --space-0: 0;

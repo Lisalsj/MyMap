@@ -1,6 +1,6 @@
 .journal-layout {
   display: grid;
-  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+  grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
   min-height: 38rem;
   min-width: 0;
   overflow: hidden;
@@ -40,10 +40,7 @@
 .journal-create {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  background: var(--paper);
+  padding: 0;
 }
 .journal-new {
   width: 100%;
@@ -74,7 +71,7 @@
 }
 .entry-item.active {
   background: var(--green-soft);
-  border-color: var(--green);
+  border-color: transparent;
   color: var(--green-dark);
 }
 .entry-item > svg {
@@ -115,6 +112,27 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+.journal-layout.is-focused {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 60rem;
+  margin-inline: auto;
+}
+.journal-index[hidden] {
+  display: none;
+}
+.is-focused .writing-area,
+.is-focused .markdown-body {
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+.is-focused .entry-associations {
+  padding-inline: var(--space-8);
+}
+.writing-focus-button[aria-pressed='true'] {
+  background: var(--green-soft);
+  color: var(--green-dark);
 }
 .editor-toolbar {
   display: flex;
@@ -210,9 +228,9 @@
   border-radius: 0;
   background: transparent;
   color: var(--ink);
-  font-size: var(--text-2xl);
-  line-height: var(--leading-2xl);
-  font-weight: 600;
+  font-size: var(--text-3xl);
+  line-height: var(--leading-3xl);
+  font-weight: 500;
 }
 .entry-title:focus {
   box-shadow: none;

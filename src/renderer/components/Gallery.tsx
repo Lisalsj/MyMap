@@ -11,11 +11,14 @@ import {
   Star,
   Trash2,
   Upload,
-  X
+  X,
+  Grid,
+  List
 } from '../ui/icons'
 import { photoUrl, type AppSnapshot, type ImportProgress, type PhotoAttachment } from '../../shared/types'
 import { matches, type SaveState } from '../model'
 import { getSnapshotIndex } from '../snapshotIndex'
+import { useViewPreference } from '../ui/useViewPreference'
 import { PhotoDraftQueue, type PhotoDraft, type PhotoDraftPatch } from '../photoDraft'
 import { isTopDialog, useDialogFocus } from '../ui/useDialogFocus'
 import { Empty, Modal, Spinner } from './Common'
@@ -48,16 +51,29 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
     [status, setStatus] = useState<SaveState>('saved'),
     [saveError, setSaveError] = useState(''),
     [progress, setProgress] = useState(initialProgress),
+    [progressVisible, setProgressVisible] = useState(false),
     [dragging, setDragging] = useState(false),
     [importing, setImporting] = useState(false),
     [error, setError] = useState('')
+  const [density, setDensity] = useViewPreference('photo-density', ['comfortable', 'compact'], 'comfortable')
+  const [photoSort, setPhotoSort] = useViewPreference('photo-sort', ['custom', 'recent'], 'custom')
   const index = useMemo(() => getSnapshotIndex(snapshot), [snapshot])
   const items = useMemo(
     () =>
       index.activeAttachments
         .filter((a) => (!filterTrip || a.tripId === filterTrip) && matches(a.caption, query))
-        .sort((a, b) => a.tripId.localeCompare(b.tripId) || a.sortOrder - b.sortOrder),
-    [index, filterTrip, query]
+        .sort((a, b) =>
+          photoSort === 'recent'
+            ? (
+                index.photoById.get(b.photoId)?.capturedAt ||
+                index.photoById.get(b.photoId)?.createdAt ||
+                ''
+              ).localeCompare(
+                index.photoById.get(a.photoId)?.capturedAt || index.photoById.get(a.photoId)?.createdAt || ''
+              ) || a.sortOrder - b.sortOrder
+            : a.tripId.localeCompare(b.tripId) || a.sortOrder - b.sortOrder
+        ),
+    [index, filterTrip, query, photoSort]
   )
   const activeById = useMemo(() => new Map(index.activeAttachments.map((a) => [a.id, a])), [index])
   // Search changes and caption edits must never silently unmount an active draft.
@@ -143,12 +159,20 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
       receivedProgress = false
     const off = window.myMap.onProgress((value) => {
       receivedProgress = true
-      if (current) setProgress(value)
+      if (current) {
+        setProgress(value)
+        setProgressVisible(true)
+      }
     })
     window.myMap
       .importProgress()
       .then((value) => {
-        if (current && !receivedProgress) setProgress(value)
+        if (current && !receivedProgress) {
+          setProgress(value)
+          setProgressVisible(
+            value.running || value.errors.length > 0 || (!snapshot.library.isDemo && value.total > 0)
+          )
+        }
       })
       .catch((cause) => {
         if (current) setError(String(cause))
@@ -249,12 +273,55 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
           ? '可以拖入照片。照片保存在本地资料库，原文件仍保留。'
           : '选择一段旅行后即可导入照片，也可以把照片拖到这里。'}
       </p>
+      <div className="gallery-view-bar">
+        <span>
+          照片集
+          <span className="muted"> · {items.length ? '点击照片，查看原图与记录' : '原图仅保存在本地'}</span>
+        </span>
+        <div className="collection-controls">
+          <label className="inline-select">
+            排序
+            <select
+              aria-label="照片排序"
+              value={photoSort}
+              onChange={(e) => {
+                const value = e.target.value
+                void guarded(() => {
+                  setPhotoSort(value)
+                  setPage(0)
+                })
+              }}
+            >
+              <option value="custom">旅行顺序</option>
+              <option value="recent">最近拍摄</option>
+            </select>
+          </label>
+          <div className="segmented-control" role="group" aria-label="照片密度">
+            <button
+              aria-label="舒展照片"
+              aria-pressed={density === 'comfortable'}
+              onClick={() => setDensity('comfortable')}
+            >
+              <List size={18} />
+              <span>舒展</span>
+            </button>
+            <button
+              aria-label="紧凑照片"
+              aria-pressed={density === 'compact'}
+              onClick={() => setDensity('compact')}
+            >
+              <Grid size={18} />
+              <span>紧凑</span>
+            </button>
+          </div>
+        </div>
+      </div>
       {error && (
         <p className="inline-error" role="alert">
           {error}
         </p>
       )}
-      {(progress.running || progress.total > 0) && (
+      {(progress.running || (progressVisible && progress.total > 0)) && (
         <div className="import-progress" role="status">
           <div>
             <strong>
@@ -273,6 +340,15 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
                 停止导入
               </button>
             )}
+            {!progress.running && (
+              <button
+                className="icon-button"
+                aria-label="收起导入结果"
+                onClick={() => setProgressVisible(false)}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           <progress aria-label="照片导入进度" value={progress.completed} max={Math.max(1, progress.total)} />
           {progress.errors.length > 0 && (
@@ -289,16 +365,29 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
       )}
       {items.length ? (
         <>
-          <div className="photo-grid">
+          <div className={`photo-grid photo-grid-${density}`}>
             {items.slice(page * 60, (page + 1) * 60).map((attachment) => {
               const photo = index.photoById.get(attachment.photoId)!,
                 trip = index.tripById.get(attachment.tripId)!
               return (
                 <button className="photo-tile" key={attachment.id} onClick={() => void openPhoto(attachment)}>
-                  <img src={photoUrl(photo.id)} loading="lazy" alt={attachment.caption || '旅行照片'} />
+                  <span className="photo-tile-image m-zoom">
+                    <img
+                      src={photoUrl(photo.id)}
+                      width={photo.width}
+                      height={photo.height}
+                      loading="lazy"
+                      decoding="async"
+                      alt={attachment.caption || '旅行照片'}
+                    />
+                  </span>
                   <span className="photo-tile-meta">
-                    <strong>{attachment.caption || '还没有照片说明'}</strong>
-                    <small>{trip.title}</small>
+                    <strong>{attachment.caption || trip.title}</strong>
+                    <small>
+                      {attachment.caption
+                        ? trip.title
+                        : photo.capturedAt?.slice(0, 10).replaceAll('-', '.') || '点击添加照片说明'}
+                    </small>
                   </span>
                   {trip.coverPhotoId === attachment.photoId && (
                     <span className="cover-badge">

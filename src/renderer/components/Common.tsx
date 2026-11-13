@@ -92,9 +92,16 @@ export function Cover({
   const attachment = index.attachmentsByTrip.get(trip.id)?.find((a) => a.photoId === trip.coverPhotoId)
   const photo = attachment && index.photoById.get(attachment.photoId)
   return (
-    <div className={`trip-cover ${className} cover-${trip.title.length % 4}`}>
+    <div className={`trip-cover m-zoom ${className} cover-${trip.title.length % 4}`}>
       {photo ? (
-        <img src={photoUrl(photo.id, 'preview')} alt={trip.title} loading="lazy" />
+        <img
+          src={photoUrl(photo.id, 'preview')}
+          alt={trip.title}
+          width={photo.width}
+          height={photo.height}
+          loading="lazy"
+          decoding="async"
+        />
       ) : (
         <>
           <div className="cover-sun" />

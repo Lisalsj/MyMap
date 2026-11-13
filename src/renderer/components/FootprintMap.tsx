@@ -570,7 +570,7 @@ export const FootprintMap = memo(function FootprintMap({
       </div>
       {!world && atlas && (
         <div className="map-light-summary">
-          <span className="map-summary-eyebrow">CITIES I HAVE LIT UP</span>
+          <span className="map-summary-eyebrow">我的城市版图</span>
           <div>
             <strong data-testid="city-light-count">{lit.size}</strong>
             <span>

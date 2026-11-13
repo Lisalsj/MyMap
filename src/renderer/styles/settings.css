@@ -14,26 +14,28 @@
   background: var(--surface);
 }
 .update-setting {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 .update-notice {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin-bottom: var(--space-6);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-xl);
   background: var(--green-soft);
 }
 .update-notice > div:first-child {
   flex: 1;
-  min-width: 16rem;
+  min-width: min(100%, 16rem);
 }
 .update-notice p {
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-sm);
 }
 .update-toggle {
   display: flex;
