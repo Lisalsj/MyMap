@@ -1,6 +1,6 @@
 # MyMap · 旅行手账
 
-[![Windows build](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml)
+[下载 Windows 版](https://github.com/Lisalsj/MyMap/releases/latest) · [手动构建](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml)
 
 **用自己的地图，收藏走过的路。**
 
@@ -61,6 +61,7 @@ npm run build        # 类型检查与生产构建
 npm run test:e2e     # 真实 Electron 界面流程
 npm run dist:win     # 安装版和免安装版，输出至 release/
 npm run checksums
+npm run verify:local # 完整本机验收，不推送或发布
 ```
 
 首次安装依赖需要下载 Electron 运行时；成品不需要 Node.js 或网络。字体、图标、地图及城市索引已随程序附带，常规构建无需重建地图。

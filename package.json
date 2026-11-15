@@ -19,6 +19,8 @@
     "dist:dir": "npm run build && electron-builder --win --dir --x64",
     "checksums": "node scripts/checksums.cjs",
     "verify:manifest": "node scripts/verify-update-manifest.cjs",
+    "verify:local": "node scripts/local-release.cjs --verify-only",
+    "release:local": "node --use-system-ca scripts/local-release.cjs",
     "size:report": "node scripts/size-report.cjs"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
     "electron": "^45.0.0",
     "electron-builder": "latest",
     "electron-vite": "latest",
+    "https-proxy-agent": "7.0.6",
     "opencc-js": "^1.4.2",
     "prettier": "^3.9.10",
     "react": "^19.0.0",

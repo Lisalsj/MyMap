@@ -1,16 +1,11 @@
-name: Windows build and release
+name: Windows manual build
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
-    env:
-      PACKAGE_BUILD: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -18,34 +13,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Verify release version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: node -e "if (process.env.GITHUB_REF_NAME !== 'v' + require('./package.json').version) throw new Error('Tag and package version differ')"
-      - run: npm run format:check
-      - run: npm test
-      - name: Build source
-        if: env.PACKAGE_BUILD != 'true'
-        run: npm run build
-      - name: Test source application
-        if: env.PACKAGE_BUILD != 'true'
-        run: npm run test:e2e
-      - name: Test installed update lifecycle
-        if: env.PACKAGE_BUILD == 'true'
-        run: npm run test:update
-      - name: Build Windows executables
-        if: env.PACKAGE_BUILD == 'true'
-        run: npm run dist:win
-      - name: Test packaged executable
-        if: env.PACKAGE_BUILD == 'true'
-        run: npx playwright test --output=test-results/packaged
-        env:
-          MYMAP_EXECUTABLE: ${{ github.workspace }}\release\win-unpacked\MyMap.exe
-      - name: Create executable checksums
-        if: env.PACKAGE_BUILD == 'true'
-        run: |
-          npm run verify:manifest
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run checksums
+      - name: Verify and build Windows executables
+        run: npm run verify:local
       - name: Upload test failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
@@ -55,45 +24,20 @@ jobs:
           retention-days: 7
           path: |
             test-results/reports/
-            test-results/e2e/
             test-results/packaged/
             test-results/screenshots/
-      - uses: actions/upload-artifact@v7
-        if: env.PACKAGE_BUILD == 'true'
-        with:
-          name: MyMap-Windows-x64
-          compression-level: 0
-          path: |
-            release/*.exe
-            release/SHA256SUMS.txt
-            release/latest.yml
-      - name: Publish a new tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Select current verified attachments
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $assets = @("release/MyMap-$version-Setup-x64.exe", "release/MyMap-$version-Portable-x64.exe", 'release/SHA256SUMS.txt', 'release/latest.yml')
-          $draft = gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --json isDraft --jq .isDraft
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $env:GITHUB_REF_NAME @assets --repo $env:GITHUB_REPOSITORY --verify-tag --draft --title "MyMap $env:GITHUB_REF_NAME" --generate-notes
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } elseif ($draft -eq 'true') {
-            gh release upload $env:GITHUB_REF_NAME @assets --repo $env:GITHUB_REPOSITORY --clobber
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-            Write-Output 'Release already published; leaving its attachments intact.'
-            exit 0
-          }
-          $metadata = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:GITHUB_REF_NAME" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($asset in $assets) {
-            $local = Get-Item -LiteralPath $asset
-            $remote = $metadata.assets | Where-Object { $_.name -eq $local.Name }
-            if (-not $remote -or $remote.size -ne $local.Length) { throw "Release attachment mismatch: $asset" }
-            $digest = 'sha256:' + (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($remote.digest -ne $digest) { throw "Release attachment checksum mismatch: $asset" }
-          }
-          gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --draft=false --latest
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "MYMAP_BUILD_VERSION=$version" >> $env:GITHUB_ENV
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MyMap-Windows-x64
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            release/MyMap-${{ env.MYMAP_BUILD_VERSION }}-Setup-x64.exe
+            release/MyMap-${{ env.MYMAP_BUILD_VERSION }}-Portable-x64.exe
+            release/SHA256SUMS.txt
+            release/latest.yml

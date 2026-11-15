@@ -1,6 +1,6 @@
 # 验证方法与限制
 
-测试使用独立临时资料库与虚构照片，不读取个人旅行资料。最近一次云端执行结果见 [Windows 构建记录](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml)。
+测试使用独立临时资料库与虚构照片，不读取个人旅行资料。完整本机验收使用 `npm run verify:local`，记录写入 `test-results/reports/local-release.json`；[云端构建](https://github.com/Lisalsj/MyMap/actions/workflows/windows.yml) 目前只保留手动入口，账户锁定时可能在执行测试前失败。
 
 ## 常规检查
 
