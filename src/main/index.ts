@@ -19,7 +19,11 @@ app.commandLine.appendSwitch('disable-background-networking')
 app.commandLine.appendSwitch('disable-component-update')
 app.commandLine.appendSwitch('disable-domain-reliability')
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints')
-if (__MYMAP_UPDATE_TEST_URL__ && /^\d{2,5}$/.test(__MYMAP_UPDATE_TEST_DEBUG_PORT__))
+if (
+  __MYMAP_UPDATE_TEST_URL__ &&
+  /^\d{2,5}$/.test(__MYMAP_UPDATE_TEST_DEBUG_PORT__) &&
+  !app.commandLine.hasSwitch('remote-debugging-port')
+)
   app.commandLine.appendSwitch('remote-debugging-port', __MYMAP_UPDATE_TEST_DEBUG_PORT__)
 protocol.registerSchemesAsPrivileged([
   { scheme: 'mymap', privileges: { standard: true, secure: true, supportFetchAPI: true } },

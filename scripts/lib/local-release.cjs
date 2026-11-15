@@ -376,6 +376,15 @@ function matchAsset(remote, local) {
     throw Error(`远端附件大小或 SHA-256 不一致：${local.name}。不会覆盖或删除附件。`)
 }
 
+function newerVersion(version, previous) {
+  const older = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(previous)
+  if (!older) throw Error('无法识别远端最新正式版本，不能自动将本次发布设为 latest。')
+  const left = version.split('.').map(BigInt),
+    right = older.slice(1).map(BigInt)
+  for (let index = 0; index < 3; index++) if (left[index] !== right[index]) return left[index] > right[index]
+  return false
+}
+
 async function publish(context, report, { notes, dryRun = false } = {}) {
   const { root, current, gitClient, client, log = console.log } = context
   assertOrigin(gitClient.origin(), current.repository)
@@ -385,17 +394,20 @@ async function publish(context, report, { notes, dryRun = false } = {}) {
     throw Error('验收记录与当前发布不一致。')
   await client.preflight()
   let release = await client.release(current.tag)
+  const latest = release && !release.draft ? null : await client.latest()
   const remoteTag = await client.tagCommit(current.tag)
   const remoteMain = await gitClient.remoteMain()
   const localTag = gitClient.localTag(current.tag)
   const blocked =
     release && !release.draft
       ? '该版本已公开，拒绝覆盖；发布新软件时请使用新的版本号。'
-      : (remoteTag && remoteTag !== report.sha) || (localTag && localTag !== report.sha)
-        ? '版本标签指向其他提交，拒绝移动标签。'
-        : remoteMain && !gitClient.ancestor(remoteMain, report.sha)
-          ? '远端 main 已发生变化，请同步后重新验收。'
-          : null
+      : latest && !newerVersion(current.version, latest.tag_name)
+        ? '新版本必须高于最新公开版本，不能回退应用更新来源。'
+        : (remoteTag && remoteTag !== report.sha) || (localTag && localTag !== report.sha)
+          ? '版本标签指向其他提交，拒绝移动标签。'
+          : remoteMain && !gitClient.ancestor(remoteMain, report.sha)
+            ? '远端 main 已发生变化，请同步后重新验收。'
+            : null
   if (dryRun) {
     const result = {
       status: 'dry-run',

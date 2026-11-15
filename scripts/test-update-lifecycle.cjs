@@ -295,23 +295,38 @@ async function main() {
       return json && JSON.parse(json)
     }, 30000)
     report.automaticRelaunchProcessObserved = true
-    // NSIS starts via Explorer, outside the original CDP connection. Reopen the installed
-    // binary with Playwright for deterministic post-upgrade data assertions on CI desktops.
+    // NSIS relaunch was observed above. Its fixed test debugger port may still be
+    // releasing the old socket; stop this fixture, wait for exit, then let Playwright
+    // choose an ephemeral port for deterministic post-install assertions.
     execFileSync(
       'powershell.exe',
       [
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:MYMAP_TEST_INSTALL_PATH } | ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }'
+        'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:MYMAP_TEST_INSTALL_PATH } | ForEach-Object { $fixtureProcessId = $_.ProcessId; Stop-Process -Id $fixtureProcessId -ErrorAction SilentlyContinue; Wait-Process -Id $fixtureProcessId -Timeout 10 -ErrorAction SilentlyContinue }'
       ],
       { env: processEnv, windowsHide: true }
     )
+    await waitFor(() => {
+      const json = execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          '@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:MYMAP_TEST_INSTALL_PATH } | Select-Object -ExpandProperty ProcessId) | ConvertTo-Json'
+        ],
+        { env: processEnv, windowsHide: true, encoding: 'utf8' }
+      ).trim()
+      return !json || JSON.parse(json).length === 0
+    }, 30000)
     const { _electron: electron } = require('@playwright/test')
     installedApp = await electron.launch({
       executablePath: executable,
-      args: [],
-      env: { ...cleanEnv, MYMAP_TEST_ROOT: profile, MYMAP_TEST_HEADLESS: '1' }
+      args: ['--remote-debugging-port=0'],
+      env: { ...cleanEnv, MYMAP_TEST_ROOT: profile, MYMAP_TEST_HEADLESS: '1' },
+      timeout: 60000
     })
     page = await installedApp.firstWindow()
     await page.getByRole('button', { name: '新建旅行', exact: true }).first().waitFor()
@@ -339,7 +354,19 @@ async function main() {
     )
     await installedApp.close()
     installedApp = undefined
-    await delay(1000)
+    await waitFor(() => {
+      const json = execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          '@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:MYMAP_TEST_INSTALL_PATH } | Select-Object -ExpandProperty ProcessId) | ConvertTo-Json'
+        ],
+        { env: processEnv, windowsHide: true, encoding: 'utf8' }
+      ).trim()
+      return !json || JSON.parse(json).length === 0
+    }, 30000)
     const uninstaller = path.join(installDir, 'Uninstall MyMapUpdateTest.exe')
     if (path.dirname(fs.realpathSync(uninstaller)) !== installDir || !installDir.startsWith(root + path.sep))
       throw Error('Unexpected fixture uninstaller')
@@ -355,6 +382,26 @@ async function main() {
     await installedApp?.close().catch(() => {})
     await browser?.close().catch(() => {})
     child?.kill()
+    // Clean up only this separately named fixture, including an NSIS-launched process
+    // that is no longer a child of the test runner after a failed assertion.
+    const fixtureExecutable = path.join(installDir, 'MyMapUpdateTest.exe')
+    if (fs.existsSync(fixtureExecutable)) {
+      if (
+        path.dirname(fs.realpathSync(fixtureExecutable)) !== installDir ||
+        !installDir.startsWith(root + path.sep)
+      )
+        throw Error('Unexpected fixture cleanup executable')
+      execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:MYMAP_TEST_INSTALL_PATH } | ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; Wait-Process -Id $_.ProcessId -Timeout 10 -ErrorAction SilentlyContinue }'
+        ],
+        { env: { ...cleanEnv, MYMAP_TEST_INSTALL_PATH: fixtureExecutable }, windowsHide: true }
+      )
+    }
     server?.closeAllConnections()
     await new Promise((resolve) => server?.close(resolve) || resolve())
     console.log('Restoring production build (no test feed or test profile)')

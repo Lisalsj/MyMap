@@ -25,7 +25,7 @@ npm run release:local -- --notes test-results/release-notes.md
 
 命令重新执行完整验收，然后一次性推送 main 和版本标签；再创建草稿 Release，上传当前版本的安装版、免安装版、更新清单和校验文件。四个附件的大小及远端 SHA-256、安装包与清单的 SHA-512 全部一致后才公开，并检查公开下载。不会自动修改版本、提交代码、强制推送或覆盖已公开版本。
 
-登录优先读取 `GH_TOKEN` / `GITHUB_TOKEN` 环境变量，否则复用 Git Credential Manager 中 github.com 的登录。凭据只在内存中使用，不写入报告或命令行。网络代理读取 `HTTPS_PROXY`，也兼容 `ALL_PROXY`；没有代理变量时直接连接。
+源码推送使用 origin 已有的 Git 登录。Release API 优先读取 `GH_TOKEN` / `GITHUB_TOKEN` 环境变量，否则复用 Git Credential Manager 中 github.com 的登录；环境变量不会自动替 Git 配置认证。凭据只在内存中使用，不写入报告或命令行。网络代理读取 `HTTPS_PROXY`，也兼容 `ALL_PROXY`；没有代理变量时直接连接。
 
 只检查本机成品和发布条件，不修改 GitHub：
 

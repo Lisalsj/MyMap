@@ -165,6 +165,14 @@ function createClient({
         throw error
       }
     },
+    async latest() {
+      try {
+        return await request('GET', `${apiRoot}/releases/latest`)
+      } catch (error) {
+        if (error.status === 404) return null
+        throw error
+      }
+    },
     async tagCommit(tag) {
       let reference
       try {

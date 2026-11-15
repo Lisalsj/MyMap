@@ -88,6 +88,7 @@ function fixture() {
   let release: any = null
   const client = {
     preflight: vi.fn(async () => {}),
+    latest: vi.fn(async (): Promise<any> => null),
     release: vi.fn(async () => (release ? structuredClone(release) : null)),
     tagCommit: vi.fn(async () => remoteTag),
     create: vi.fn(async (name: string, commit: string, notes: string) => {
@@ -219,6 +220,15 @@ it('dry-run for a new version reports its exact inputs without modifying anythin
     assets: f.current.names
   })
   expect(f.gitClient.tag).not.toHaveBeenCalled()
+  expect(f.gitClient.push).not.toHaveBeenCalled()
+  expect(f.client.create).not.toHaveBeenCalled()
+})
+
+it('prevents an older version from replacing the latest update feed', async () => {
+  const f = fixture(),
+    report = await local.verify(f.context)
+  f.client.latest.mockResolvedValueOnce({ tag_name: 'v0.7.0' })
+  await expect(local.publish(f.context, report, { notes: '更新' })).rejects.toThrow('不能回退')
   expect(f.gitClient.push).not.toHaveBeenCalled()
   expect(f.client.create).not.toHaveBeenCalled()
 })
