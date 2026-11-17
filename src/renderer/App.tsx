@@ -3,11 +3,9 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  Camera,
   Check,
   ChevronRight,
   Compass,
-  Map,
   MapPin,
   Plus,
   Search,
@@ -15,12 +13,12 @@ import {
   ShieldCheck,
   Shuffle,
   Sparkles,
-  Stamp,
   Filters,
   X
 } from './ui/icons'
 import type { AppSnapshot, Entry, EntityKind, Trip } from '../shared/types'
-import { matches, matchingTrips, passport, tripDates, effectiveVisitDate } from './model'
+import { matchingTrips, passport, tripDates, effectiveVisitDate } from './model'
+import { quickMatches } from './search'
 import { Modal, Spinner } from './components/Common'
 import type { InitialVisit } from './components/Editors'
 import { MapPage } from './pages/MapPage'
@@ -32,6 +30,7 @@ import type { Confirmation, Page } from './pages/types'
 import { getSnapshotIndex } from './snapshotIndex'
 import { PageSkeleton } from './ui/primitives'
 import { useUpdates, UpdateNotice } from './ui/updates'
+import { StickerIcon, type StickerKind } from './ui/StickerIcon'
 const Gallery = lazy(() => import('./components/Gallery').then((module) => ({ default: module.Gallery })))
 const Journal = lazy(() => import('./components/Journal').then((module) => ({ default: module.Journal })))
 const TripEditor = lazy(() =>
@@ -42,12 +41,12 @@ const VisitEditor = lazy(() =>
 )
 const loadingPage = <PageSkeleton />
 
-const navigation: { id: Page; label: string; icon: typeof Map; hint: string }[] = [
-  { id: 'map', label: '足迹地图', icon: Map, hint: '点亮去过的城市，翻看沿途的故事。' },
-  { id: 'trips', label: '我的旅行', icon: Compass, hint: '按一段段旅程，收藏地点、照片与手记。' },
-  { id: 'journal', label: '旅行手账', icon: BookOpen, hint: '留一页给风景，也留一页给当时的自己。' },
-  { id: 'gallery', label: '照片馆', icon: Camera, hint: '整理沿途拍下的照片，为每一刻写下说明。' },
-  { id: 'passport', label: '旅行护照', icon: Stamp, hint: '每一次抵达，都在这里留下印记。' }
+const navigation: { id: Page & StickerKind; label: string; hint: string }[] = [
+  { id: 'map', label: '足迹地图', hint: '点亮去过的城市，翻看沿途的故事。' },
+  { id: 'trips', label: '我的旅行', hint: '按一段段旅程，收藏地点、照片与手记。' },
+  { id: 'journal', label: '旅行手账', hint: '留一页给风景，也留一页给当时的自己。' },
+  { id: 'gallery', label: '照片馆', hint: '整理沿途拍下的照片，为每一刻写下说明。' },
+  { id: 'passport', label: '旅行护照', hint: '每一次抵达，都在这里留下印记。' }
 ]
 export default function App() {
   const updateState = useUpdates()
@@ -301,42 +300,32 @@ export default function App() {
   const searchResults = useMemo(() => {
     if (!snapshot || !searchOpen || !query.trim()) return []
     const index = getSnapshotIndex(snapshot)
+    const found = quickMatches(snapshot, query)
     return [
-      ...matchingTrips(snapshot, query)
-        .slice(0, 5)
-        .map((trip) => ({
-          id: 't' + trip.id,
-          targetId: trip.id,
-          kind: 'trip' as const,
-          label: trip.title,
-          sub: '旅行 · ' + tripDates(trip),
-          icon: Compass
-        })),
-      ...index.activeEntries
-        .filter((entry) => matches(entry.title + ' ' + entry.markdown, query))
-        .slice(0, 4)
-        .map((entry) => ({
-          id: 'e' + entry.id,
-          targetId: entry.id,
-          kind: 'entry' as const,
-          label: entry.title,
-          sub: '手记 · ' + index.tripById.get(entry.tripId)?.title,
-          icon: BookOpen
-        })),
-      ...index.activeVisits
-        .filter((visit) => {
-          const place = index.placeById.get(visit.placeId)!
-          return matches(place.name + ' ' + place.cityName, query)
-        })
-        .slice(0, 4)
-        .map((visit) => ({
-          id: 'v' + visit.id,
-          targetId: visit.tripId,
-          kind: 'visit' as const,
-          label: index.placeById.get(visit.placeId)!.name,
-          sub: '足迹 · ' + index.tripById.get(visit.tripId)?.title,
-          icon: MapPin
-        }))
+      ...found.trips.map((trip) => ({
+        id: 't' + trip.id,
+        targetId: trip.id,
+        kind: 'trip' as const,
+        label: trip.title,
+        sub: '旅行 · ' + tripDates(trip),
+        icon: Compass
+      })),
+      ...found.entries.map((entry) => ({
+        id: 'e' + entry.id,
+        targetId: entry.id,
+        kind: 'entry' as const,
+        label: entry.title,
+        sub: '手记 · ' + index.tripById.get(entry.tripId)?.title,
+        icon: BookOpen
+      })),
+      ...found.visits.map((visit) => ({
+        id: 'v' + visit.id,
+        targetId: visit.tripId,
+        kind: 'visit' as const,
+        label: index.placeById.get(visit.placeId)!.name,
+        sub: '足迹 · ' + index.tripById.get(visit.tripId)?.title,
+        icon: MapPin
+      }))
     ]
   }, [snapshot, query, searchOpen])
   useEffect(() => {
@@ -391,7 +380,7 @@ export default function App() {
       <aside className="sidebar">
         <button className="brand" aria-label="返回足迹地图" onClick={() => go('map')}>
           <div className="brand-mark">
-            <Compass size={29} strokeWidth={1.4} />
+            <Compass size={29} weight="duotone" />
           </div>
           <span>
             MyMap<small>我的旅行图鉴</small>
@@ -409,7 +398,7 @@ export default function App() {
               title={n.label}
               onClick={() => go(n.id)}
             >
-              <n.icon size={19} strokeWidth={1.7} />
+              <StickerIcon kind={n.id} />
               <span>{n.label}</span>
               {n.id === 'trips' && <small>{trips.length.toString().padStart(2, '0')}</small>}
             </button>
@@ -423,7 +412,7 @@ export default function App() {
           title="回忆盲盒：随机翻开一段旅行"
         >
           <span className="memory-stars">
-            <Sparkles size={24} />
+            <StickerIcon kind="memory" />
           </span>
           <span>
             <strong>回忆盲盒</strong>
@@ -448,7 +437,9 @@ export default function App() {
             onClick={() => go('settings')}
           >
             <Settings size={18} />
-            <span>设置与资料库</span>
+            <span>
+              设置<span className="settings-label-extra">与资料库</span>
+            </span>
           </button>
           <div className="sidebar-footer">MyMap · 私人旅行收藏</div>
         </div>

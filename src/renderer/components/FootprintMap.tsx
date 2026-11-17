@@ -587,7 +587,7 @@ export const FootprintMap = memo(function FootprintMap({
       )}
       <div className="map-compass" aria-hidden="true">
         <span>N</span>
-        <Compass size={30} strokeWidth={1} />
+        <Compass size={30} weight="duotone" />
       </div>
       <div className="map-zoom-controls">
         <button aria-label="放大地图" title="放大" onClick={() => zoom(1.4)}>
@@ -628,9 +628,9 @@ export const FootprintMap = memo(function FootprintMap({
       )}
       {atlas && !eligible.length && !picking && (
         <div className="map-empty">
-          <MapPin size={21} strokeWidth={1.2} />
+          <MapPin size={21} weight="duotone" />
           <strong>点亮第一座，故事就开始了。</strong>
-          <span>为旅行添加城市，收藏属于你的绿色版图</span>
+          <span>为旅行添加城市，收藏属于你的旅行版图</span>
         </div>
       )}
       {selected && !picking && (

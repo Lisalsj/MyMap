@@ -418,6 +418,7 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
         </>
       ) : (
         <Empty
+          illustration="gallery"
           title={query ? '没有找到匹配的照片' : '把旅途里的光，留在这里'}
           description={
             query

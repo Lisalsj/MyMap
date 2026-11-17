@@ -12,24 +12,24 @@ npm run test:e2e
 
 单元测试覆盖资料关联、重复到访、照片去重、EXIF、回收站、备份恢复、路径安全、Markdown、城市数据、聚合、草稿保存和退出协调。
 
-真实 Electron 流程覆盖保存与重启、离线边界、演示隔离、手记归属、照片说明与 GPS、导入取消、城市点亮与筛选，以及鼠标和键盘焦点。打包后通过 `MYMAP_EXECUTABLE` 指定 `release/win-unpacked/MyMap.exe` 重跑这些流程，命令见 [发布文档](RELEASE.md)。
+真实 Electron 流程覆盖保存与重启、离线边界、演示隔离、手记归属、照片说明与 GPS、导入取消、城市点亮与筛选，以及鼠标和键盘焦点。主题检查包含重启偏好、异常回退、草稿和视口保留，切换主题不发起地图 Worker 请求。打包后通过 `MYMAP_EXECUTABLE` 指定 `release/win-unpacked/MyMap.exe` 重跑这些流程，命令见 [发布文档](RELEASE.md)。
 
 ## 补充验收
 
-| 工具                                     | 用途                                                 |
-| ---------------------------------------- | ---------------------------------------------------- |
-| `node scripts/capture-ui.cjs`            | 全页与表单截图、窄窗口及页面缩放、横向溢出和文字检查 |
-| `node scripts/capture-map-focus.cjs`     | 放大地图后的鼠标反馈与键盘边界焦点                   |
-| `npx tsx scripts/benchmark-map.ts`       | 合成旅行库、地图计算、拖动与连续缩放                 |
-| `npx tsx scripts/benchmark.ts 5000 --ui` | 合成照片导入、图库分页及首屏加载                     |
-| `node scripts/portable-smoke.cjs`        | 免安装程序直接启动、保存重启、离线与退出             |
-| `npm run size:report`                    | 安装版、免安装版和展开目录体积                       |
-| `node scripts/benchmark-navigation.cjs`  | 独立演示库中的首次加载、20 次切页、长任务和内存      |
-| `npm run test:update`                    | 独立测试安装版的真实升级、校验失败及资料保留         |
+| 工具                                           | 用途                                                                 |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| `node scripts/capture-ui.cjs --theme sky-rose` | 全页与表单截图、窄窗口及页面缩放；另用 `--theme forest` 检查默认主题 |
+| `node scripts/capture-map-focus.cjs`           | 放大地图后的鼠标反馈与键盘边界焦点                                   |
+| `npx tsx scripts/benchmark-map.ts`             | 合成旅行库、地图计算、拖动与连续缩放                                 |
+| `npx tsx scripts/benchmark.ts 5000 --ui`       | 合成照片导入、图库分页及首屏加载                                     |
+| `node scripts/portable-smoke.cjs`              | 免安装程序直接启动、保存重启、离线与退出                             |
+| `npm run size:report`                          | 安装版、免安装版和展开目录体积                                       |
+| `node scripts/benchmark-navigation.cjs`        | 独立演示库中的首次加载、20 次切页、长任务和内存                      |
+| `npm run test:update`                          | 独立测试安装版的真实升级、校验失败及资料保留                         |
 
 工具输出保存在忽略提交的 `test-results/reports/` 和 `test-results/screenshots/`。界面测试与性能测量应串行执行，避免窗口焦点和后台负载互相影响。性能数字必须同时记录设备、测试数据与运行方式；Node 计算耗时或 RAF 间隔不能直接当作完整画面帧率。
 
-本机 Windows 11、i7-14700KF、默认 GPU、1440 × 940 窗口，使用同一份预生成演示库实测：新进程启动至地图可交互从 1.87 秒降至 0.80 秒，20 次切回地图的 p95 从 1,494ms 降至 53ms，切回期间未记录到界面长任务。额外 100 次切页后，DOM 与事件监听未累积，内存随回收波动而非持续增长。这是单机测量，系统缓存未受控；首次创建演示库还要生成照片预览，另测约 1.22 秒。
+切页性能使用同一份预生成演示库对比成品，记录首次地图加载、连续切回、长任务与回收后的内存。搜索另用固定规模的合成旅行和长手记比较 CPU 耗时，区分首次规范化与后续查询。详细数据保存在测试报告中。
 
 独立 NSIS 应用已完成真实 A→B 下载、校验、安装及自动重启，包含断网、取消下载、错误校验值拒绝、原图与手记保留、更新偏好保留和卸载后保留资料库。单元测试另外覆盖保存失败时取消安装，以及等待资料服务安全关闭。
 

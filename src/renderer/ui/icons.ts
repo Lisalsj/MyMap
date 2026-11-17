@@ -44,5 +44,7 @@ export {
   ListBullets as List,
   ArrowsOutSimple as Expand,
   ArrowsInSimple as Collapse,
-  SlidersHorizontal as Filters
+  SlidersHorizontal as Filters,
+  SuitcaseRolling as Suitcase,
+  Gift
 } from '@phosphor-icons/react'

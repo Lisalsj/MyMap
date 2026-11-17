@@ -10,9 +10,9 @@
   flex-wrap: wrap;
   gap: var(--space-6);
   padding: var(--space-8) var(--space-10);
-  border: 1px solid var(--green);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-2xl);
-  background: var(--green-dark);
+  background: var(--accent-strong);
   color: var(--surface);
 }
 .passport-banner-copy {
@@ -35,7 +35,7 @@
 .passport-banner-copy p {
   margin: 0;
   max-width: 65ch;
-  color: var(--green-soft);
+  color: var(--accent-soft);
   font-size: var(--text-base);
   line-height: var(--leading-base);
 }
@@ -66,7 +66,7 @@
   gap: var(--space-4);
   min-width: 0;
   padding: var(--space-6);
-  color: var(--green);
+  color: var(--accent);
   text-align: left;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
@@ -105,13 +105,13 @@
   pointer-events: none;
 }
 .city-stamp[data-ink='1'] {
-  color: var(--orange-dark);
+  color: var(--highlight-strong);
 }
 .city-stamp[data-ink='2'] .stamp-art {
   border-radius: var(--radius-2xl);
 }
 .passport-edition {
-  color: var(--green-soft);
+  color: var(--accent-soft);
   font-size: var(--text-xs);
   line-height: var(--leading-sm);
   letter-spacing: 0.04em;

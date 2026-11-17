@@ -3,7 +3,11 @@ const { _electron: electron } = require('@playwright/test')
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { resolve, join, dirname, basename } = require('node:path')
-const { writeReport, screenshotsDirectory: directory } = require('./lib/artifacts.cjs')
+const { writeReport, screenshotsDirectory } = require('./lib/artifacts.cjs')
+const themeArg = process.argv.indexOf('--theme')
+const theme = themeArg < 0 ? 'forest' : process.argv[themeArg + 1]
+if (!['forest', 'sky-rose'].includes(theme)) throw Error('Unknown theme')
+const directory = join(screenshotsDirectory, theme)
 const version = require('../package.json').version
 const prefix = 'mymap-design-qa-'
 const tempParent = realpathSync(tmpdir())
@@ -96,6 +100,9 @@ async function main() {
   })
   await page.getByRole('button', { name: '新建旅行', exact: true }).first().waitFor()
   await page.evaluate(() => window.myMap.setUpdateChecks(false))
+  await navigate(page, '设置与资料库')
+  await page.getByRole('radio', { name: theme === 'forest' ? '米白森林' : '晴空樱粉', exact: true }).check()
+  await navigate(page, '足迹地图')
   await page.locator('.map-city-region').first().waitFor()
   await page.evaluate(() => document.fonts.load('16px "Noto Sans SC"', '旅行图鉴'))
   const pages = [
@@ -170,6 +177,7 @@ async function main() {
   }))
   const report = {
     version,
+    theme,
     executable: process.env.MYMAP_EXECUTABLE || 'node_modules/electron (out/main/index.js)',
     electronReportedAppVersion: await app.evaluate(({ app }) => app.getVersion()),
     generatedAtUtc: new Date().toISOString(),
@@ -177,10 +185,10 @@ async function main() {
       'Windows Electron; visible foreground window and isolated fictional demo library; GPU disabled for deterministic screenshots; native viewport captures; zoom is Electron webContents zoom, not a change to OS display settings.',
     checks: results,
     reducedMotion,
-    screenshotDirectory: 'test-results/screenshots',
+    screenshotDirectory: `test-results/screenshots/${theme}`,
     failures: results.filter((r) => r.overflow || r.tinyText.length).map((r) => r.page)
   }
-  writeReport('design-qa', report)
+  writeReport(`design-qa-${theme}`, report)
   console.log(JSON.stringify({ pages: results.length, failures: report.failures, reducedMotion }))
 }
 main()

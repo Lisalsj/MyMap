@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react'
-import { X, Compass, ArrowRight, Image } from '../ui/icons'
+import { X, ArrowRight, Image } from '../ui/icons'
+import { StickerIcon, type StickerKind } from '../ui/StickerIcon'
 import { photoUrl, type AppSnapshot, type Trip } from '../../shared/types'
 import { getSnapshotIndex } from '../snapshotIndex'
 import { useDialogFocus } from '../ui/useDialogFocus'
@@ -47,17 +48,19 @@ export function Empty({
   title,
   description,
   action,
-  label = '新建旅行'
+  label = '新建旅行',
+  illustration = 'map'
 }: {
   title: string
   description: string
   action?: () => void
   label?: string
+  illustration?: StickerKind
 }) {
   return (
     <div className="empty-state">
       <div className="empty-icon">
-        <Compass size={34} strokeWidth={1.2} />
+        <StickerIcon kind={illustration} large />
       </div>
       <h3>{title}</h3>
       <p>{description}</p>

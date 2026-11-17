@@ -1,6 +1,7 @@
 import { ArrowRight, FolderOpen, ShieldCheck, Sparkles, Trash2, Upload } from '../ui/icons'
 import type { AppSnapshot, UpdateState } from '../../shared/types'
 import { UpdateSettings } from '../ui/updates'
+import { ThemeSettings } from '../ui/ThemeSettings'
 import { version as appVersion } from '../../../package.json'
 import type { Confirmation, GuardedAction, RunOperation } from './types'
 import '../styles/settings.css'
@@ -71,6 +72,7 @@ export function SettingsPage({
         </div>
       </section>
 
+      <ThemeSettings />
       <UpdateSettings state={updateState} guarded={guarded} reportError={reportError} />
 
       <section className="settings-card backup-setting">

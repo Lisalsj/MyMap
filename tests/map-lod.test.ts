@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { feature } from 'topojson-client'
+import { geoArea, geoContains } from 'd3-geo'
+import type { GeoPermissibleObjects } from 'd3-geo'
 import type { Topology, GeometryCollection } from 'topojson-specification'
 import { mapFrame, mapLod, mapProjection } from '../src/renderer/map/projection'
 import { segmentDistanceSquared, simplifyTopology } from '../src/renderer/map/simplify'
@@ -73,4 +75,35 @@ it('uses fixed geometry with a cheap affine transform for resize and respects LO
     }
   }
   expect([1, 1.99, 2, 5.99, 6, 16].map(mapLod)).toEqual([0, 0, 1, 1, 2, 2])
+})
+
+it('keeps shipped overview and regional islands from reversing and painting the ocean as land', () => {
+  for (const name of ['china-overview', 'china-regional']) {
+    const topology = JSON.parse(readFileSync(`src/renderer/assets/${name}.topo.json`, 'utf8'))
+    const regions = feature(topology, topology.objects.cities) as unknown as {
+      features: GeoPermissibleObjects[]
+    }
+    expect(regions.features).toHaveLength(340)
+    for (const region of regions.features) {
+      expect(geoArea(region)).toBeGreaterThan(0)
+      expect(geoArea(region)).toBeLessThan(2 * Math.PI)
+      expect(geoContains(region, [140, 20])).toBe(false)
+    }
+    const provinces = feature(topology, topology.objects.provinces) as GeoPermissibleObjects
+    expect(geoContains(provinces, [140, 20])).toBe(false)
+  }
+  const context = JSON.parse(readFileSync('src/renderer/assets/world-context.json', 'utf8'))
+  expect(geoArea(context) / (4 * Math.PI)).toBeGreaterThan(0.26)
+  expect(geoArea(context) / (4 * Math.PI)).toBeLessThan(0.32)
+  expect(geoContains(context, [140, 20])).toBe(false)
+  expect(geoContains(context, [100, 35])).toBe(true)
+  for (const feature of context.features) {
+    const polygons =
+      feature.geometry.type === 'Polygon' ? [feature.geometry.coordinates] : feature.geometry.coordinates
+    for (const polygon of polygons)
+      for (const ring of polygon)
+        for (let i = 1; i < ring.length; i++)
+          if (Math.abs(ring[i][1]) >= 85 && Math.abs(ring[i - 1][1]) >= 85)
+            expect(Math.abs(ring[i][0] - ring[i - 1][0])).toBeLessThanOrEqual(180)
+  }
 })

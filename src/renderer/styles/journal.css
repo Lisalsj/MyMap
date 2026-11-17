@@ -70,9 +70,9 @@
   background: var(--paper);
 }
 .entry-item.active {
-  background: var(--green-soft);
+  background: var(--accent-soft);
   border-color: transparent;
-  color: var(--green-dark);
+  color: var(--accent-strong);
 }
 .entry-item > svg {
   flex-shrink: 0;
@@ -131,8 +131,8 @@
   padding-inline: var(--space-8);
 }
 .writing-focus-button[aria-pressed='true'] {
-  background: var(--green-soft);
-  color: var(--green-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 .editor-toolbar {
   display: flex;
@@ -170,8 +170,8 @@
   line-height: var(--leading-xs);
 }
 .toolbar-actions .icon-button[aria-pressed='true'] {
-  background: var(--green-soft);
-  color: var(--green-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 .save-error {
   margin: var(--space-4) var(--space-6) 0;
@@ -197,7 +197,7 @@
   line-height: var(--leading-xs);
 }
 .entry-trip strong {
-  color: var(--green-dark);
+  color: var(--accent-strong);
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
   font-weight: 500;
@@ -234,7 +234,7 @@
 }
 .entry-title:focus {
   box-shadow: none;
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--accent);
   outline-offset: var(--space-1);
 }
 .entry-subtitle {
@@ -323,8 +323,8 @@
   padding: var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: var(--green-soft);
-  color: var(--green-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 .markdown-body blockquote > :first-child {
   margin-top: 0;
@@ -382,7 +382,7 @@
   color: var(--muted);
 }
 .offline-link {
-  color: var(--green);
+  color: var(--accent);
   text-decoration: underline;
   text-underline-offset: var(--space-half);
 }
@@ -408,7 +408,7 @@
   text-align: left;
 }
 .photo-picker button:hover {
-  background: var(--green-soft);
+  background: var(--accent-soft);
 }
 .photo-picker img {
   display: block;

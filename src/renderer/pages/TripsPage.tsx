@@ -80,6 +80,7 @@ export function TripsPage({
         </div>
       ) : (
         <Empty
+          illustration="trips"
           title={hasTrips ? '没有匹配的旅行' : '你的第一段旅行'}
           description={hasTrips ? '试着放宽年份或城市条件。' : '记录一座城市、一次散步，或一段长途旅行。'}
           action={hasTrips ? onClear : onNew}

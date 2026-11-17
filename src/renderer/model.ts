@@ -1,5 +1,6 @@
 import type { AppSnapshot, City, Entry, Trip, Visit, VisitInput } from '../shared/types'
 import { getSnapshotIndex } from './snapshotIndex'
+export { matchingTrips } from './search'
 
 export const manualCityId = (name: string, country: string) =>
   `manual:${country.normalize('NFKC').trim().toLowerCase()}:${name.normalize('NFKC').trim().toLowerCase()}`
@@ -85,28 +86,6 @@ export const tripDates = (t: Trip) =>
     : '日期待定 · 随时出发'
 export const matches = (value: string, query: string) =>
   value.toLocaleLowerCase().includes(query.trim().toLowerCase())
-export function matchingTrips(s: AppSnapshot, query: string, year = '', cityId = '') {
-  const index = getSnapshotIndex(s)
-  const normalizedQuery = query.trim().toLowerCase()
-  return index.activeTrips.filter((t) => {
-    const visits = index.visitsByTrip.get(t.id) || []
-    return (
-      (!year ||
-        (visits.length
-          ? visits.some((v) => effectiveVisitDate(v, t).startsWith(year))
-          : t.startDate.startsWith(year))) &&
-      (!cityId || visits.some((visit) => index.placeById.get(visit.placeId)!.cityId === cityId)) &&
-      (!normalizedQuery ||
-        [
-          t.title,
-          t.description,
-          ...t.tags,
-          ...visits.map((visit) => index.placeById.get(visit.placeId)!.name),
-          ...(index.entriesByTrip.get(t.id) || []).flatMap((e) => [e.title, e.markdown])
-        ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery)))
-    )
-  })
-}
 export function mediaId(url: string): string | null {
   const match =
     /^mymap-photo:([a-zA-Z0-9_-]+)$/.exec(url) ||

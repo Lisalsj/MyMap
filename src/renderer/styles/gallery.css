@@ -24,7 +24,7 @@
   background: var(--surface);
 }
 .gallery-search .input-icon:focus-within {
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .gallery-search .input-icon input {
@@ -76,7 +76,7 @@
   border-top: 1px solid var(--line);
 }
 .gallery-view-bar > span {
-  color: var(--green);
+  color: var(--accent);
 }
 .photo-tile {
   position: relative;
@@ -144,7 +144,7 @@
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   background: var(--surface);
-  color: var(--green);
+  color: var(--accent);
   border-radius: var(--radius-md);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
@@ -182,8 +182,8 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border-radius: var(--radius-xl);
-  background: var(--green-soft);
-  color: var(--green-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 .import-progress > div {
   display: flex;
@@ -200,7 +200,7 @@
 .import-progress progress {
   width: 100%;
   height: var(--space-2);
-  accent-color: var(--green);
+  accent-color: var(--accent);
 }
 .import-progress details {
   font-size: var(--text-xs);
@@ -220,10 +220,10 @@
   justify-content: center;
   gap: var(--space-4);
   padding: var(--space-6);
-  background: var(--green-soft);
-  border: 2px dashed var(--green);
+  background: var(--accent-soft);
+  border: 2px dashed var(--accent);
   border-radius: var(--radius-2xl);
-  color: var(--green-dark);
+  color: var(--accent-strong);
   text-align: center;
   pointer-events: none;
 }
@@ -267,7 +267,7 @@
   background: #313131;
 }
 .lightbox-stage .icon-button:hover {
-  background: var(--green);
+  background: var(--accent);
 }
 .lightbox-close {
   top: var(--space-4);

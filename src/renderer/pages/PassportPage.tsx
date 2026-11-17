@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { ArrowRight, Globe2, MapPin } from '../ui/icons'
+import { ArrowRight, MapPin } from '../ui/icons'
+import { StickerIcon } from '../ui/StickerIcon'
 import type { AppSnapshot } from '../../shared/types'
 import { Empty } from '../components/Common'
 import { effectiveVisitDate, passport } from '../model'
@@ -40,7 +41,7 @@ export function PassportPage({
     <div className="passport-page">
       <section className="passport-banner" aria-label="城市印章收藏">
         <div className="passport-banner-copy">
-          <Globe2 size={32} aria-hidden="true" />
+          <StickerIcon kind="passport" />
           <div>
             <span className="passport-edition">MyMap · 城市护照</span>
             <h2>每一座城，都有你的印记。</h2>
@@ -69,7 +70,7 @@ export function PassportPage({
                 <span className="stamp-top">
                   {String(order + 1).padStart(2, '0')} / {stamp.country || '城市足迹'}
                 </span>
-                <MapPin size={32} />
+                <MapPin size={32} weight="duotone" />
                 <strong>{stamp.name}</strong>
                 <span className="stamp-bottom">
                   {stamp.date ? stamp.date.replaceAll('-', '.') : '未记日期'}
@@ -89,6 +90,7 @@ export function PassportPage({
         </div>
       ) : (
         <Empty
+          illustration="passport"
           title="你的世界，等你盖章"
           description="给旅行添加到访城市，城市印章就会出现在这里。换一个筛选条件，也许能找到另一段回忆。"
         />

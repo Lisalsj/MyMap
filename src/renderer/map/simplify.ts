@@ -1,4 +1,5 @@
 import type { Topology } from 'topojson-specification'
+import { geoArea } from 'd3-geo'
 
 export function segmentDistanceSquared(point: readonly number[], a: readonly number[], b: readonly number[]) {
   const dx = b[0] - a[0],
@@ -30,6 +31,12 @@ export function simplifyTopology(
     })
   })
   const forced = arcs.map((arc) => new Set([0, arc.length - 1]))
+  for (const [id, arc] of arcs.entries())
+    for (const [index, point] of arc.entries())
+      // Near a pole, a straight Mercator segment spanning over 180° becomes a
+      // different great-circle edge after decoding. Keep these source anchors.
+      if (Math.abs(point[1]) >= 85) forced[id].add(index)
+  const ringsToCheck: number[][] = []
   for (const object of Object.values(source.objects)) {
     const geometries = object.type === 'GeometryCollection' ? object.geometries : [object]
     for (const geometry of geometries) {
@@ -37,6 +44,7 @@ export function simplifyTopology(
         geometry.type === 'Polygon' ? [geometry.arcs] : geometry.type === 'MultiPolygon' ? geometry.arcs : []
       for (const rings of polygons)
         for (const ring of rings) {
+          ringsToCheck.push(ring)
           const points = ring.flatMap((ref) => {
             const id = ref < 0 ? ~ref : ref
             return arcs[id].map((p, index) => ({ p, id, index }))
@@ -84,5 +92,30 @@ export function simplifyTopology(
     }
     return arc.filter((_p, index) => keep.has(index))
   })
+  const ringArea = (refs: number[], geometry: typeof arcs) =>
+    geoArea({
+      type: 'Polygon',
+      coordinates: [refs.flatMap((ref) => (ref < 0 ? [...geometry[~ref]].reverse() : geometry[ref]))]
+    })
+  const originalAreas = ringsToCheck.map((refs) => ringArea(refs, arcs))
+  // Three distinct vertices alone do not preserve winding in a tiny concave island.
+  // D3 paints a reversed ring as the rest of the globe. Restore its shared source
+  // arcs, then recheck neighbors affected by the restoration before shipping data.
+  let restored: boolean
+  do {
+    restored = false
+    for (let i = 0; i < ringsToCheck.length; i++) {
+      const refs = ringsToCheck[i],
+        area = ringArea(refs, simplified),
+        original = originalAreas[i]
+      if (area > 2 * Math.PI === original > 2 * Math.PI && area !== 0 && area !== 4 * Math.PI) continue
+      for (const ref of refs) {
+        const id = ref < 0 ? ~ref : ref
+        if (simplified[id] === arcs[id]) continue
+        simplified[id] = arcs[id]
+        restored = true
+      }
+    }
+  } while (restored)
   return { ...rest, arcs: simplified } as Topology
 }

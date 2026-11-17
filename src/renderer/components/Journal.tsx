@@ -382,6 +382,7 @@ export function Journal({
           </>
         ) : (
           <Empty
+            illustration="journal"
             title="让旅途，再发生一次"
             description="选择一篇手记，或翻开新的一页。每一段普通的日子，都值得被记住。"
             action={index.activeTrips.length ? create : undefined}
@@ -412,6 +413,7 @@ export function Journal({
             </div>
           ) : (
             <Empty
+              illustration="gallery"
               title="这一程，还没有照片"
               description="先到照片馆导入本次旅行的照片，再把喜欢的放进手记。"
             />
