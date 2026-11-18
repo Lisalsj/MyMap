@@ -11,6 +11,7 @@ const yaml = require('js-yaml')
 const { createHash } = require('node:crypto')
 const { LibraryService } = require('../src/backend/library.ts')
 const { writeReport } = require('./lib/artifacts.cjs')
+const { acquireLock, finishUpdateFixture } = require('./lib/cleanup.cjs')
 
 const workspace = fs.realpathSync('.')
 fs.mkdirSync(path.join(workspace, 'test-results'), { recursive: true })
@@ -408,11 +409,22 @@ async function main() {
     await run('node_modules/electron-vite/bin/electron-vite.js', ['build'])
     restored = true
     report.productionBuildRestored = restored
+    report.artifactsRetained = true
+    writeReport('update-lifecycle', report)
+    const removed = finishUpdateFixture(workspace, root, {
+      passed: report.status === 'passed',
+      restored,
+      keep: Boolean(reuse) || process.argv.includes('--keep-artifacts')
+    })
+    report.artifactsRetained = !removed
     writeReport('update-lifecycle', report)
   }
   console.log(JSON.stringify(report, null, 2))
 }
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+const unlock = acquireLock(workspace, '.update-lifecycle.lock', ['.cleanup.lock'])
+main()
+  .catch((error) => {
+    console.error(error)
+    process.exitCode = 1
+  })
+  .finally(unlock)

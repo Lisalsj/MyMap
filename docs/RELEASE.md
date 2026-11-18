@@ -45,6 +45,12 @@ npm run release:local -- --resume --notes test-results/release-notes.md
 
 草稿按创建时记录的 Release ID 读取，避免按标签接口未返回草稿时重复创建。没有记录 ID 时会查询发行列表；查询失败或草稿身份不一致会停止。
 
+## 本地生成物清理
+
+`npm run clean` 只预览，`npm run clean -- --apply` 执行清理。仅删除已识别的旧发行文件、展开目录、编译输出和历史实验；保留当前版本四个发行文件、开发依赖、NSIS 工具及最小验收摘要。未知内容、链接、Git 跟踪文件和活动任务受保护，清理结果写入 `test-results/reports/cleanup.json`。
+
+升级测试成功并恢复生产构建后自动回收本次临时目录。失败时保留诊断；使用 `npm run test:update -- --keep-artifacts` 可保留成功产物供排查，`--reuse <目录>` 也会保留复用目录。普通启动和构建不自动清理发行文件。
+
 ## 云端手动构建
 
 [Windows 工作流](../.github/workflows/windows.yml) 仅允许 Actions 页的 **Run workflow** 手动触发，执行相同本机验收命令并提供构建附件，不公开 Release。普通分支和标签推送均不触发构建。

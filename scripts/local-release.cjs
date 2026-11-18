@@ -4,6 +4,8 @@ const local = require('./lib/local-release.cjs')
 const { credential, createClient } = require('./lib/github-release.cjs')
 
 function lock(root) {
+  if (fs.existsSync(path.join(root, 'test-results/.cleanup.lock')))
+    throw Error('生成物清理正在运行，请完成后再验收或发布。')
   const file = path.join(root, 'test-results/.local-release.lock')
   fs.mkdirSync(path.dirname(file), { recursive: true })
   let fd

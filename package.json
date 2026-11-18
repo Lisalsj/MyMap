@@ -21,7 +21,8 @@
     "verify:manifest": "node scripts/verify-update-manifest.cjs",
     "verify:local": "node scripts/local-release.cjs --verify-only",
     "release:local": "node --use-system-ca scripts/local-release.cjs",
-    "size:report": "node scripts/size-report.cjs"
+    "size:report": "node scripts/size-report.cjs",
+    "clean": "node scripts/clean.cjs"
   },
   "dependencies": {
     "electron-updater": "6.8.12",
