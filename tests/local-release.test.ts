@@ -595,3 +595,138 @@ it('sends the actual streamed asset bytes and UTF-8 notes through the GitHub tra
     client.close()
   }
 })
+
+it('reads a recorded draft by ID and recovers unrecorded drafts hidden from the tag endpoint', async () => {
+  const f = fixture(),
+    requests: string[] = []
+  const draft = { id: 42, tag_name: f.current.tag, draft: true, body: '完整中文说明', assets: [] }
+  const client = github.createClient({
+    repository: f.current.repository,
+    token: 'fixture-secret',
+    env: {},
+    requestImpl: transport((url, options) => {
+      expect(options.method).toBe('GET')
+      requests.push(url.pathname + url.search)
+      if (url.pathname.endsWith('/tags/' + f.current.tag)) return { status: 404 }
+      if (url.search) return { body: [{ id: 42, tag_name: f.current.tag, draft: true }] }
+      return { body: draft }
+    })
+  })
+  try {
+    expect(await client.release(f.current.tag, 42)).toEqual(draft)
+    expect(requests).toEqual(['/repos/Lisalsj/MyMap/releases/42'])
+    requests.length = 0
+    expect(await client.release(f.current.tag)).toEqual(draft)
+    expect(requests).toEqual([
+      `/repos/Lisalsj/MyMap/releases/tags/${f.current.tag}`,
+      '/repos/Lisalsj/MyMap/releases?per_page=100&page=1',
+      '/repos/Lisalsj/MyMap/releases/42'
+    ])
+  } finally {
+    client.close()
+  }
+})
+
+it.each(['missing', 'wrong-tag', 'wrong-id', 'network'])(
+  'stops on a %s recorded draft without falling back to creation',
+  async (kind) => {
+    const requests: string[] = []
+    const client = github.createClient({
+      repository: 'Lisalsj/MyMap',
+      token: 'fixture-secret',
+      env: {},
+      requestImpl: transport((url) => {
+        requests.push(url.pathname)
+        if (kind === 'missing') return { status: 404 }
+        if (kind === 'network') return { error: Object.assign(Error(), { code: 'ECONNRESET' }) }
+        return {
+          body: { id: kind === 'wrong-id' ? 99 : 42, tag_name: kind === 'wrong-tag' ? 'v0.5.0' : 'v0.6.0' }
+        }
+      })
+    })
+    try {
+      await expect(client.release('v0.6.0', 42)).rejects.toThrow()
+      expect(requests).toEqual(['/repos/Lisalsj/MyMap/releases/42'])
+      await expect(client.release('v0.6.0', '../secret')).rejects.toThrow('ID 无效')
+      expect(requests).toHaveLength(1)
+    } finally {
+      client.close()
+    }
+  }
+)
+
+it('distinguishes real absence from listing failures and never treats a network failure as absence', async () => {
+  for (const failure of [false, true]) {
+    const client = github.createClient({
+      repository: 'Lisalsj/MyMap',
+      token: 'fixture-secret',
+      env: {},
+      requestImpl: transport((url) =>
+        url.search ? (failure ? { status: 503 } : { body: [] }) : { status: 404 }
+      )
+    })
+    try {
+      if (failure) await expect(client.release('v0.6.0')).rejects.toThrow('503')
+      else expect(await client.release('v0.6.0')).toBeNull()
+    } finally {
+      client.close()
+    }
+  }
+})
+
+it('continues draft listing pagination and rejects ambiguous or incomplete listing results', async () => {
+  for (const kind of ['paged', 'duplicate', 'unbounded', 'tag-error']) {
+    const pages: number[] = []
+    const client = github.createClient({
+      repository: 'Lisalsj/MyMap',
+      token: 'fixture-secret',
+      env: {},
+      requestImpl: transport((url) => {
+        if (url.pathname.includes('/tags/')) return { status: kind === 'tag-error' ? 500 : 404 }
+        if (!url.search) return { body: { id: 42, tag_name: 'v0.6.0' } }
+        const page = Number(url.searchParams.get('page'))
+        pages.push(page)
+        if (kind === 'duplicate')
+          return {
+            body: [
+              { id: 42, tag_name: 'v0.6.0' },
+              { id: 43, tag_name: 'v0.6.0' }
+            ]
+          }
+        if (kind === 'paged' && page === 2) return { body: [{ id: 42, tag_name: 'v0.6.0' }] }
+        return { body: Array.from({ length: 100 }, (_, id) => ({ id, tag_name: 'other' })) }
+      })
+    })
+    try {
+      if (kind === 'paged') {
+        expect((await client.release('v0.6.0')).id).toBe(42)
+        expect(pages).toEqual([1, 2])
+      } else {
+        await expect(client.release('v0.6.0')).rejects.toThrow()
+        expect(pages).toHaveLength(kind === 'tag-error' ? 0 : kind === 'duplicate' ? 1 : 10)
+      }
+    } finally {
+      client.close()
+    }
+  }
+})
+
+it('passes the persisted draft ID through resume and drops an obsolete publication error after success', async () => {
+  const f = fixture(),
+    report = await local.verify(f.context)
+  await local.publish(f.context, report, { notes: '中文说明' })
+  expect(f.client.release).toHaveBeenLastCalledWith(f.current.tag, 1)
+  // Simulate the same uploaded draft after an interrupted publish, without another push or upload.
+  const draft = { ...f.getRelease(), draft: true }
+  f.setRelease(draft)
+  report.publication.status = 'preparing'
+  report.publication.error = 'previous interruption'
+  const pushes = f.gitClient.push.mock.calls.length,
+    uploads = f.client.upload.mock.calls.length
+  await local.publish(f.context, report, { notes: '中文说明' })
+  expect(f.client.release).toHaveBeenCalledWith(f.current.tag, 1)
+  expect(f.gitClient.push.mock.calls).toHaveLength(pushes)
+  expect(f.client.upload.mock.calls).toHaveLength(uploads)
+  expect(report.publication.status).toBe('verified')
+  expect(report.publication.error).toBeUndefined()
+})

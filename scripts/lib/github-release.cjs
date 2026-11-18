@@ -157,13 +157,31 @@ function createClient({
       if (repo.private || !repo.permissions?.push || repo.default_branch !== 'main')
         throw Error('发布要求公开仓库、main 默认分支和当前账号的推送权限。')
     },
-    async release(tag) {
+    async release(tag, releaseId) {
+      if (releaseId !== undefined) {
+        if (!Number.isSafeInteger(releaseId) || releaseId < 1) throw Error('草稿 Release ID 无效。')
+        // Drafts are not reliably returned by GitHub's tag endpoint. A recorded
+        // identity is authoritative: a missing ID must stop, never create a second draft.
+        const value = await request('GET', `${apiRoot}/releases/${releaseId}`)
+        if (value.id !== releaseId || value.tag_name !== tag) throw Error('草稿 Release 身份不匹配。')
+        return value
+      }
       try {
         return await request('GET', `${apiRoot}/releases/tags/${encodeURIComponent(tag)}`)
       } catch (error) {
-        if (error.status === 404) return null
-        throw error
+        if (error.status !== 404) throw error
       }
+      // Recover a draft whose creation response was received before its ID could
+      // be recorded. Exhaust the bounded listing; do not infer absence on errors.
+      for (let page = 1; page <= 10; page++) {
+        const values = await request('GET', `${apiRoot}/releases?per_page=100&page=${page}`)
+        if (!Array.isArray(values)) throw Error('GitHub 返回了无效的发行列表。')
+        const matches = values.filter((value) => value.tag_name === tag)
+        if (matches.length > 1) throw Error('发现重复版本的 Release，已停止。')
+        if (matches.length) return this.release(tag, matches[0].id)
+        if (values.length < 100) return null
+      }
+      throw Error('发行列表过长，无法确认草稿是否存在；已停止创建。')
     },
     async latest() {
       try {

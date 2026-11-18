@@ -43,6 +43,8 @@ npm run release:local -- --resume --notes test-results/release-notes.md
 
 续传要求原验收全部通过、提交与文件哈希未变；相同草稿附件会跳过，不一致附件会停止并提示检查，不会删除或覆盖。不要在续传前重新打包，重新打包可能产生不同校验值。源码变化后必须重新验收。若已经公开但公开下载检查遇到网络问题，先检查 Release 页面；命令不会为重试覆盖公开附件。
 
+草稿按创建时记录的 Release ID 读取，避免按标签接口未返回草稿时重复创建。没有记录 ID 时会查询发行列表；查询失败或草稿身份不一致会停止。
+
 ## 云端手动构建
 
 [Windows 工作流](../.github/workflows/windows.yml) 仅允许 Actions 页的 **Run workflow** 手动触发，执行相同本机验收命令并提供构建附件，不公开 Release。普通分支和标签推送均不触发构建。

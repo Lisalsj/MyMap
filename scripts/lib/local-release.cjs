@@ -393,7 +393,7 @@ async function publish(context, report, { notes, dryRun = false } = {}) {
   if (JSON.stringify(checked.artifacts) !== JSON.stringify(report.artifacts))
     throw Error('验收记录与当前发布不一致。')
   await client.preflight()
-  let release = await client.release(current.tag)
+  let release = await client.release(current.tag, report.publication?.releaseId)
   const latest = release && !release.draft ? null : await client.latest()
   const remoteTag = await client.tagCommit(current.tag)
   const remoteMain = await gitClient.remoteMain()
@@ -464,7 +464,7 @@ async function publish(context, report, { notes, dryRun = false } = {}) {
       const prior = release.assets.find((item) => item.name === artifact.name)
       if (!prior) matchAsset(await client.upload(release.id, artifact, root), artifact)
     }
-    release = await client.release(current.tag)
+    release = await client.release(current.tag, report.publication.releaseId)
     if (
       !release?.draft ||
       release.id !== report.publication.releaseId ||
@@ -484,6 +484,7 @@ async function publish(context, report, { notes, dryRun = false } = {}) {
     save(root, report)
     await client.verifyPublic(current.tag, report.artifacts, root)
     report.publication.status = 'verified'
+    delete report.publication.error
     log(`发布与公开下载核对完成：${published.html_url}`)
     return report.publication
   } catch (error) {
