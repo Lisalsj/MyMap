@@ -121,13 +121,17 @@ async function main() {
         Math.min(count, 60)
       )
       await page.waitForFunction(() => {
-        const visible = [...document.querySelectorAll<HTMLImageElement>('.photo-tile img')].filter(
-          (image) => {
-            const rect = image.getBoundingClientRect()
-            return rect.top < innerHeight && rect.bottom > 0
-          }
+        const visible = [...document.querySelectorAll('.photo-tile-image')].filter((tile) => {
+          const rect = tile.getBoundingClientRect()
+          return rect.top < innerHeight && rect.bottom > 0
+        })
+        return (
+          visible.length > 0 &&
+          visible.every((tile) => {
+            const image = tile.querySelector('img')
+            return image && image.complete && image.naturalWidth > 0
+          })
         )
-        return visible.length > 0 && visible.every((image) => image.complete && image.naturalWidth > 0)
       })
       report.electron = await app.evaluate(() => process.versions.electron)
       report.renderer = {
