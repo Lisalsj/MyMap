@@ -96,7 +96,7 @@ export function safeMarkdownUrl(url: string) {
   return mediaId(url) ? url : ''
 }
 export type Draft = Pick<Entry, 'id' | 'tripId' | 'visitId' | 'title' | 'markdown'>
-export const draftKey = (d: Draft) => JSON.stringify([d.id, d.tripId, d.visitId, d.title, d.markdown])
+const draftKey = (d: Draft) => JSON.stringify([d.id, d.tripId, d.visitId, d.title, d.markdown])
 export type SaveState = 'saved' | 'saving' | 'pending' | 'error'
 
 /** Serializes writes and drains edits received during an in-flight save. Failure retains the newest draft. */

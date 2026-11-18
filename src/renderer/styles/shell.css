@@ -128,6 +128,7 @@
   font-size: var(--text-2xl);
   line-height: var(--leading-2xl);
   color: var(--accent);
+  transition: transform var(--duration-fast) var(--ease);
 }
 .memory-card > span:nth-child(2) {
   flex: 1;
@@ -147,9 +148,6 @@
 }
 .memory-card:hover .memory-stars {
   transform: translateY(-2px);
-}
-.memory-stars {
-  transition: transform var(--duration-fast) var(--ease);
 }
 .memory-card > svg {
   display: none;
@@ -573,9 +571,6 @@
     padding: var(--space-2);
     border: 0;
     background: transparent;
-  }
-  .memory-stars {
-    font-size: var(--text-2xl);
   }
   .sidebar-bottom {
     width: 100%;

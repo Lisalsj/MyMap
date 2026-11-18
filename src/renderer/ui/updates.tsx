@@ -28,7 +28,7 @@ export function useUpdates() {
 }
 const bytes = (value?: number) => (value ? `${(value / 1024 / 1024).toFixed(1)} MB` : '大小待确认')
 
-export function UpdateActions({
+function UpdateActions({
   state,
   guarded,
   reportError

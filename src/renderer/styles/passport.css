@@ -21,10 +21,6 @@
   gap: var(--space-4);
   color: var(--surface);
 }
-.passport-banner-copy > svg {
-  flex-shrink: 0;
-  margin-top: var(--space-2);
-}
 .passport-banner-copy h2 {
   margin: var(--space-3) 0;
   color: var(--surface);
@@ -134,18 +130,6 @@
   display: grid;
   gap: var(--space-2);
   width: 100%;
-}
-.stamp-caption > strong {
-  color: var(--ink);
-  font-size: var(--text-lg);
-  line-height: var(--leading-lg);
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.stamp-date {
-  color: var(--muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
 }
 .stamp-count {
   display: flex;

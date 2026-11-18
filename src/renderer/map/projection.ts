@@ -1,8 +1,8 @@
 import { geoMercator } from 'd3-geo'
 import type { Bounds, MapLod } from './atlasTypes'
 
-export const BASE_WIDTH = 1000
-export const BASE_HEIGHT = 640
+const BASE_WIDTH = 1000
+const BASE_HEIGHT = 640
 export function mapProjection(world: boolean, width = BASE_WIDTH, height = BASE_HEIGHT) {
   return geoMercator()
     .center(world ? [0, 18] : [104, 36])
