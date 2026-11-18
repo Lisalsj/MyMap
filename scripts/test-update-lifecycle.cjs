@@ -371,7 +371,18 @@ async function main() {
     const uninstaller = path.join(installDir, 'Uninstall MyMapUpdateTest.exe')
     if (path.dirname(fs.realpathSync(uninstaller)) !== installDir || !installDir.startsWith(root + path.sep))
       throw Error('Unexpected fixture uninstaller')
-    execFileSync(uninstaller, ['/S'], { env: cleanEnv, windowsHide: true, timeout: 60000, stdio: 'ignore' })
+    // NSIS normally hands off to a temporary process. Its unquoted final _?= argument
+    // runs the uninstall in place so the checks below wait for the actual removal.
+    execFileSync(uninstaller, ['/S', `_?=${installDir}`], {
+      env: cleanEnv,
+      windowsHide: true,
+      windowsVerbatimArguments: true,
+      timeout: 60000,
+      stdio: 'ignore'
+    })
+    if (fs.existsSync(executable) || fs.existsSync(path.join(installDir, 'resources/app.asar')))
+      throw Error('Uninstaller returned while the fixture application was still installed')
+    report.uninstallRemovedApplication = true
     report.uninstallKeptTestLibrary = fs.existsSync(path.join(profile, 'Library/library.sqlite'))
     if (!report.uninstallKeptTestLibrary) throw Error('Uninstaller removed the test library')
     report.status = 'passed'
