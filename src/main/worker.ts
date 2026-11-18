@@ -11,6 +11,7 @@ let switching = false
 let stopping = false
 let cityAssetsPath = ''
 const methods = new Set([
+  'libraryInfo',
   'snapshot',
   'saveTrip',
   'saveEntry',
@@ -23,7 +24,6 @@ const methods = new Set([
   'updateAttachment',
   'confirmPhotoLocation',
   'photoPath',
-  'cancelImport',
   'importProgress',
   'backup',
   'exportEntry'
@@ -37,9 +37,7 @@ port.on('message', async ({ data }: { data: Message }) => {
     if (method === 'init') {
       if (importing || operation) throw new Error('请等待照片导入或备份结束后再切换资料库')
       const [path, isDemo, assetsPath] = args as [string, boolean, string]
-      cityAssetsPath = assetsPath
-      if (library?.snapshot().library.path === path) result = library.snapshot()
-      else {
+      if (library?.libraryInfo().path !== path) {
         switching = true
         try {
           const next = new LibraryService(path, { isDemo, assetsPath })
@@ -51,11 +49,11 @@ port.on('message', async ({ data }: { data: Message }) => {
             throw error
           }
           library = next
-          result = library.snapshot()
         } finally {
           switching = false
         }
       }
+      cityAssetsPath = assetsPath
     } else if (method === 'cities') {
       const query = args[0] as string
       const cities = loadCities(cityAssetsPath)
@@ -87,18 +85,29 @@ port.on('message', async ({ data }: { data: Message }) => {
       await Promise.allSettled([importing, operation])
       library?.close()
       result = true
+    } else if (method === 'cancelImport') {
+      if (!library) throw new Error('资料库尚未打开')
+      library.cancelImport()
+      if (importing) port.postMessage({ event: 'progress', progress: library.importProgress() })
     } else if (method === 'importPhotos') {
       if (!library) throw new Error('资料库尚未打开')
       if (importing) throw new Error('已有照片导入任务，请等待完成')
+      let nextUpdate = 0
+      const sendProgress = (progress: ImportProgress) => {
+        const time = performance.now()
+        if (progress.running && time < nextUpdate) return
+        nextUpdate = time + 100
+        port.postMessage({ event: 'progress', progress })
+      }
       const task = library.importPhotos(
         args[0] as string[],
         args[1] as string,
         args[2] as never,
-        (progress: ImportProgress) => port.postMessage({ event: 'progress', progress })
+        sendProgress
       )
       importing = task
       try {
-        result = await task
+        await task
       } finally {
         importing = null
       }

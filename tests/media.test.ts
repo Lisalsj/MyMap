@@ -52,6 +52,48 @@ it('copies and deduplicates originals, skips corrupt files and exports portable 
   expect(db.snapshot().photos).toHaveLength(0)
   expect(existsSync(source)).toBe(true)
 })
+it('appends successful attachments in order across failed, repeated and restored imports', async () => {
+  const external = folder()
+  const images: string[] = []
+  for (const color of ['red', 'green', 'blue']) {
+    const file = join(external, color + '.png')
+    await sharp({ create: { width: 8, height: 6, channels: 3, background: color } })
+      .png()
+      .toFile(file)
+    images.push(file)
+  }
+  const db = new LibraryService(folder())
+  services.push(db)
+  const trip = db.saveTrip({ title: '排序' })
+  await db.importPhotos([images[0]], trip.id)
+  const first = db.snapshot().attachments[0]
+  expect(db.updateAttachment(first.id, { sortOrder: 9, caption: '封面' })).toEqual({
+    ...first,
+    sortOrder: 9,
+    caption: '封面'
+  })
+  db.trash('attachment', first.id)
+  const result = await db.importPhotos(
+    [images[0], join(external, 'missing.png'), images[1], images[1], images[2]],
+    trip.id
+  )
+  expect(result).toMatchObject({ imported: 2, duplicates: 2, completed: 5 })
+  expect(result.errors).toHaveLength(1)
+  const { photos, attachments } = db.snapshot()
+  expect(
+    attachments
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((item) => [
+        photos.find((photo) => photo.id === item.photoId)!.originalName,
+        item.sortOrder,
+        item.deletedAt
+      ])
+  ).toEqual([
+    ['red.png', 9, null],
+    ['green.png', 10, null],
+    ['blue.png', 11, null]
+  ])
+})
 it.each([
   ['named colon entity', (id: string) => `![照片](mymap-photo&colon;${id})`],
   ['decimal colon entity', (id: string) => `![照片](mymap-photo&#58;${id})`],

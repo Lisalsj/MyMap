@@ -84,8 +84,6 @@ export const tripDates = (t: Trip) =>
   t.startDate
     ? `${t.startDate.replaceAll('-', '.')} ${t.endDate && t.endDate !== t.startDate ? '— ' + t.endDate.replaceAll('-', '.') : ''}`
     : '日期待定 · 随时出发'
-export const matches = (value: string, query: string) =>
-  value.toLocaleLowerCase().includes(query.trim().toLowerCase())
 export function mediaId(url: string): string | null {
   const match =
     /^mymap-photo:([a-zA-Z0-9_-]+)$/.exec(url) ||

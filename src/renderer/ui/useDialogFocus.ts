@@ -15,7 +15,11 @@ function focusable(holder: HTMLElement) {
   )
 }
 /** Only the uppermost dialog handles modal keys; child dialogs restore their trigger. */
-export function useDialogFocus(holder: RefObject<HTMLElement | null>, onEscape: () => void) {
+export function useDialogFocus(
+  holder: RefObject<HTMLElement | null>,
+  onEscape: () => void,
+  initialFocus?: RefObject<HTMLElement | null>
+) {
   const close = useRef(onEscape),
     token = useRef(Symbol('dialog'))
   close.current = onEscape
@@ -58,7 +62,8 @@ export function useDialogFocus(holder: RefObject<HTMLElement | null>, onEscape: 
     const timer = window.setTimeout(() => {
       if (!top() || !holder.current) return
       const elements = focusable(holder.current)
-      const initial = elements.find((element) => element.matches('[autofocus],input,textarea'))
+      const initial =
+        initialFocus?.current || elements.find((element) => element.matches('[autofocus],input,textarea'))
       ;(initial || elements[0] || holder.current).focus()
     }, 0)
     return () => {
@@ -83,7 +88,7 @@ export function useDialogFocus(holder: RefObject<HTMLElement | null>, onEscape: 
         returnTarget = null
       }
     }
-  }, [holder])
+  }, [holder, initialFocus])
 }
 
 /** Photo-arrow handlers use the same top-dialog rule as Tab/Escape. */

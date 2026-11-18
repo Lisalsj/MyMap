@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -63,6 +63,15 @@ describe('durable relational library', () => {
     expect(() => db.saveEntry({ tripId: b.id, visitId: v.id, title: 'bad', markdown: '' })).toThrow()
     expect(() => db.reorderVisits(a.id, [])).toThrow()
     expect(() => new LibraryService(db.snapshot().library.path)).toThrow(/占用|锁|open|lock/i)
+  })
+  it('edits trips and opens an existing demo without loading unrelated records', async () => {
+    const db = new LibraryService(folder(), { isDemo: true })
+    services.push(db)
+    const trip = db.saveTrip({ title: 'A', tags: ['旧标签'] })
+    const snapshots = vi.spyOn(db, 'snapshot')
+    await db.seedDemo()
+    expect(db.saveTrip({ id: trip.id, title: 'B' })).toMatchObject({ title: 'B', tags: ['旧标签'] })
+    expect(snapshots).not.toHaveBeenCalled()
   })
   it('does not let changing trip dates strand an existing visit outside the trip', () => {
     const db = library()

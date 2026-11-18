@@ -20,6 +20,7 @@ import { markdownPhotoIds, portableJournalMarkdown } from './markdown'
 import { loadCities } from '../shared/cities'
 import type {
   AppSnapshot,
+  LibraryInfo,
   Trip,
   TripInput,
   Entry,
@@ -36,6 +37,8 @@ import type {
 } from '../shared/types'
 
 const VERSION = 1
+type StoredTrip = Omit<Trip, 'tags'> & { tags: string }
+const readTrip = (row: StoredTrip): Trip => ({ ...row, tags: JSON.parse(row.tags) })
 const now = () => new Date().toISOString()
 const initialProgress = (): ImportProgress => ({
   running: false,
@@ -205,12 +208,15 @@ export class LibraryService {
       )
       .run(...values)
   }
-  snapshot(): AppSnapshot {
+  libraryInfo(): LibraryInfo {
     if (this.closed) throw new Error('资料库已关闭')
+    return { path: this.root, isDemo: !!this.options.isDemo, version: VERSION }
+  }
+  snapshot(): AppSnapshot {
     const rows = (table: string) => this.db.prepare(`SELECT * FROM ${table}`).all() as any[]
     return {
-      library: { path: this.root, isDemo: !!this.options.isDemo, version: VERSION },
-      trips: rows('trips').map((row) => ({ ...row, tags: JSON.parse(row.tags) })),
+      library: this.libraryInfo(),
+      trips: rows('trips').map(readTrip),
       places: rows('places'),
       visits: rows('visits').sort((a, b) => a.sortOrder - b.sortOrder),
       entries: rows('entries'),
@@ -220,7 +226,10 @@ export class LibraryService {
   }
   saveTrip(input: TripInput): Trip {
     this.writable()
-    const previous = input.id ? this.snapshot().trips.find((t) => t.id === input.id) : undefined
+    const row = input.id
+      ? (this.db.prepare('SELECT * FROM trips WHERE id=?').get(input.id) as StoredTrip | undefined)
+      : undefined
+    const previous = row && readTrip(row)
     if (input.id && !previous) throw new Error('旅行不存在')
     const timestamp = now()
     const startDate = date(input.startDate ?? previous?.startDate ?? '')
@@ -429,7 +438,7 @@ export class LibraryService {
   updateAttachment(
     id: string,
     patch: { caption?: string; sortOrder?: number; visitId?: string | null; entryId?: string | null }
-  ): void {
+  ): PhotoAttachment {
     this.writable()
     const previous = this.get<PhotoAttachment>('attachments', id)
     const next = {
@@ -448,6 +457,7 @@ export class LibraryService {
       throw new Error('照片说明或排序无效')
     this.associations(next.tripId, next.visitId, next.entryId)
     this.upsert('attachments', next)
+    return next
   }
   confirmPhotoLocation(photoId: string, attachmentId?: string): Visit {
     this.writable()
@@ -546,6 +556,11 @@ export class LibraryService {
     }
     publish()
     try {
+      let nextSortOrder = Number(
+        this.db
+          .prepare('SELECT coalesce(max(sortOrder),-1)+1 AS n FROM attachments WHERE tripId=?')
+          .get(tripId)!.n
+      )
       for (const source of paths) {
         if (this.progress.cancelled) break
         this.progress.current = source
@@ -569,7 +584,7 @@ export class LibraryService {
             }
             created = photo
             atomicWrite(managedPath(this.root, photo.originalPath), bytes)
-            await createPreviews(this.root, photo)
+            await createPreviews(this.root, photo, bytes)
           }
           const already = this.db
             .prepare('SELECT id FROM attachments WHERE photoId=? AND tripId=?')
@@ -585,16 +600,11 @@ export class LibraryService {
                 visitId: options.visitId || null,
                 entryId: options.entryId || null,
                 caption: '',
-                sortOrder: Number(
-                  (
-                    this.db
-                      .prepare('SELECT coalesce(max(sortOrder),-1)+1 AS n FROM attachments WHERE tripId=?')
-                      .get(tripId) as any
-                  ).n
-                ),
+                sortOrder: nextSortOrder,
                 deletedAt: null
               })
           })
+          if (!already) nextSortOrder++
           if (created) this.progress.imported++
           else this.progress.duplicates++
         } catch (error) {
@@ -729,7 +739,7 @@ export class LibraryService {
   }
   async seedDemo(): Promise<void> {
     this.writable()
-    if (!this.options.isDemo || this.snapshot().trips.length) return
+    if (!this.options.isDemo || this.db.prepare('SELECT 1 FROM trips LIMIT 1').get()) return
     const stories = [
       {
         title: '江南，慢一点',
@@ -852,8 +862,10 @@ export class LibraryService {
           { visitId: visit.id, entryId: entry.id },
           () => {}
         )
-      const photo = this.snapshot().attachments.find((a) => a.tripId === trip.id)
-      if (photo) this.saveTrip({ ...trip, coverPhotoId: photo.photoId })
+      const attachment = this.db
+        .prepare('SELECT photoId FROM attachments WHERE tripId=? LIMIT 1')
+        .get(trip.id)
+      if (attachment) this.saveTrip({ ...trip, coverPhotoId: String(attachment.photoId) })
     }
   }
   close(): void {

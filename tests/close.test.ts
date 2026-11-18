@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,7 +12,9 @@ const state = vi.hoisted(() => ({
   choices: [] as number[],
   startupErrors: [] as string[],
   rejectLoad: null as null | ((error: Error) => void),
-  initialize: () => Promise.resolve(),
+  initialize: (() => Promise.resolve()) as (path: string, isDemo: boolean) => Promise<void>,
+  library: { path: '', isDemo: false },
+  chosenFolder: '',
   requests: [] as string[],
   progress: () => Promise.resolve({ running: false }),
   shutdown: () => Promise.resolve(),
@@ -75,6 +77,7 @@ vi.mock('electron', async () => {
     app: {
       isPackaged: false,
       getPath: () => tmpdir(),
+      getAppPath: () => join(tmpdir(), 'mymap-mock-application'),
       setPath() {},
       commandLine: { appendSwitch() {} },
       requestSingleInstanceLock: () => true,
@@ -87,6 +90,10 @@ vi.mock('electron', async () => {
     },
     BrowserWindow: Window,
     dialog: {
+      showOpenDialog: async () => ({
+        canceled: !state.chosenFolder,
+        filePaths: state.chosenFolder ? [state.chosenFolder] : []
+      }),
       showErrorBox(_title: string, message: string) {
         state.startupErrors.push(message)
       },
@@ -111,16 +118,18 @@ vi.mock('electron', async () => {
       fork: () => {
         const worker = new EventEmitter() as any
         worker.kill = () => {}
-        worker.postMessage = ({ id, method }: any) => {
+        worker.postMessage = ({ id, method, args }: any) => {
           state.requests.push(method)
           const work =
             method === 'init'
-              ? state.initialize()
+              ? state.initialize(args[0], args[1]).then(() => {
+                  state.library = { path: args[0], isDemo: args[1] }
+                })
               : method === 'importProgress'
                 ? state.progress()
                 : method === 'shutdown'
                   ? state.shutdown()
-                  : Promise.resolve({})
+                  : Promise.resolve({ library: state.library })
           work.then(
             (result) => worker.emit('message', { id, result }),
             (error) => worker.emit('message', { id, error: String(error) })
@@ -165,11 +174,14 @@ beforeEach(async () => {
   state.updateReady = false
   state.updateInstalls = 0
   state.initialize = () => Promise.resolve()
+  state.chosenFolder = ''
+  state.library = { path: '', isDemo: false }
   state.requests = []
   state.progress = () => Promise.resolve({ running: false })
   state.shutdown = () => Promise.resolve()
   profile = mkdtempSync(join(tmpdir(), 'mymap-close-'))
   vi.stubEnv('MYMAP_TEST_ROOT', profile)
+  vi.stubEnv('MYMAP_DEMO', '0')
   vi.stubEnv('ELECTRON_RENDERER_URL', '')
   await import('../src/main/index')
   await tick()
@@ -179,6 +191,75 @@ afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
   rmSync(profile, { recursive: true, force: true })
+})
+
+const call = (method: string, ...args: unknown[]) => state.calls.get('mymap:call')!(event(), method, args)
+
+it('persists a validated personal location and leaves it intact through demo, return and same-folder selection', async () => {
+  const personal = join(profile, 'Other travels')
+  state.chosenFolder = personal
+  await call('chooseLibrary')
+  expect(JSON.parse(readFileSync(join(profile, 'settings.json'), 'utf8')).library).toBe(personal)
+  mkdirSync(join(profile, 'settings.json.tmp')) // Any unnecessary write now fails.
+  state.requests = []
+  await call('chooseLibrary')
+  expect(state.requests).not.toContain('init')
+  state.chosenFolder = join(profile, 'Demo')
+  await call('chooseLibrary')
+  expect((await call('snapshot')).library).toEqual({ path: state.chosenFolder, isDemo: true })
+  await call('setDemo', false)
+  expect((await call('snapshot')).library).toEqual({ path: personal, isDemo: false })
+})
+
+it('keeps the old worker library and startup preference when the candidate cannot open', async () => {
+  const old = join(profile, 'Saved')
+  state.chosenFolder = old
+  await call('chooseLibrary')
+  state.chosenFolder = join(profile, 'Unavailable')
+  state.initialize = () => Promise.reject(Error('目标库无法打开'))
+  await expect(call('chooseLibrary')).rejects.toThrow('目标库无法打开')
+  expect((await call('snapshot')).library.path).toBe(old)
+  expect(JSON.parse(readFileSync(join(profile, 'settings.json'), 'utf8')).library).toBe(old)
+})
+
+it('restores the previous demo library before returning a settings write error', async () => {
+  const old = join(profile, 'Demo')
+  await call('setDemo', true)
+  mkdirSync(join(profile, 'settings.json.tmp'))
+  state.chosenFolder = join(profile, 'Candidate')
+  let finish!: () => void
+  state.initialize = (path) =>
+    path === old
+      ? new Promise<void>((resolve) => {
+          finish = resolve
+        })
+      : Promise.resolve()
+  const result = call('chooseLibrary')
+  const failed = expect(result).rejects.toThrow('已回到原资料库')
+  await tick()
+  expect(state.library.path).toBe(state.chosenFolder)
+  await expect(call('updateAttachment', 'unused', { caption: 'old draft' })).rejects.toThrow('正在切换')
+  expect(state.requests).not.toContain('updateAttachment')
+  finish()
+  await failed
+  expect((await call('snapshot')).library).toEqual({ path: old, isDemo: true })
+  expect(existsSync(join(profile, 'settings.json'))).toBe(false)
+  await call('setDemo', false)
+  expect((await call('snapshot')).library.path).toBe(join(profile, 'Library'))
+})
+
+it('reports a session-only switch if writing settings and reopening the previous location both fail', async () => {
+  const previous = join(profile, 'Library')
+  mkdirSync(join(profile, 'settings.json.tmp'))
+  state.chosenFolder = join(profile, 'Candidate')
+  state.initialize = (path) => (path === previous ? Promise.reject(Error('原磁盘已断开')) : Promise.resolve())
+  await expect(call('chooseLibrary')).resolves.toBe(state.chosenFolder)
+  expect((await call('snapshot')).library).toEqual({ path: state.chosenFolder, isDemo: false })
+  expect(state.startupErrors).toHaveLength(1)
+  expect(state.startupErrors[0]).toContain('原磁盘已断开')
+  await call('setDemo', true)
+  await call('setDemo', false)
+  expect((await call('snapshot')).library.path).toBe(state.chosenFolder)
 })
 
 async function pendingStartup() {

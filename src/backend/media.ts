@@ -85,10 +85,12 @@ export async function inspectImage(source: string) {
 }
 export async function createPreviews(
   root: string,
-  photo: Pick<Photo, 'originalPath' | 'previewPath' | 'thumbPath'>
+  photo: Pick<Photo, 'originalPath' | 'previewPath' | 'thumbPath'>,
+  sourceBytes?: Buffer
 ): Promise<void> {
   validateMediaPaths(photo)
-  const original = readFileSync(managedPath(root, photo.originalPath))
+  const originalPath = managedPath(root, photo.originalPath)
+  const original = sourceBytes ?? readFileSync(originalPath)
   for (const [path, edge] of [
     [photo.thumbPath, 640],
     [photo.previewPath, 2000]
@@ -100,7 +102,7 @@ export async function createPreviews(
         await sharp(original, { limitInputPixels: 80_000_000 })
           .rotate()
           .resize(edge, edge, { fit: 'inside', withoutEnlargement: true })
-          .webp({ quality: 82 })
+          .webp({ quality: 82, effort: edge === 2000 ? 2 : 4 })
           .toBuffer()
       )
   }

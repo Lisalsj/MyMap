@@ -1,8 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell, utilityProcess } from 'electron'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import type { AppSnapshot, ImportProgress } from '../shared/types'
+import type { AppSnapshot, ImportProgress, LibraryInfo } from '../shared/types'
 import { assetPath, isTrustedUrl, allowedRequest, mediaRequest } from './security'
 import { version as appVersion } from '../../package.json'
 import { UpdateService, type UpdatePreferences } from './updates'
@@ -30,11 +30,13 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'mymap-media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ])
 const settingsFile = join(profile, 'settings.json')
+const demoLibrary = join(profile, 'Demo')
 let personalLibrary = join(profile, 'Library')
 let updatePreferences: UpdatePreferences = { enabled: null }
 try {
   const value = JSON.parse(readFileSync(settingsFile, 'utf8'))
-  if (typeof value.library === 'string' && value.library) personalLibrary = resolve(value.library)
+  if (typeof value.library === 'string' && value.library && relative(demoLibrary, value.library) !== '')
+    personalLibrary = resolve(value.library)
   if (value.updates && typeof value.updates.enabled === 'boolean')
     updatePreferences.enabled = value.updates.enabled
   if (Number.isFinite(value.updates?.lastAttemptAt) && value.updates.lastAttemptAt > 0)
@@ -45,7 +47,8 @@ try {
 let demo = process.env.MYMAP_DEMO === '1'
 let window: BrowserWindow | null = null
 let worker: Electron.UtilityProcess | null = null
-let initialLibrary: Promise<unknown> | undefined
+let initialLibrary: Promise<void> | undefined
+let switchingLibrary = false
 let nextId = 0,
   closing = false,
   allowClose = false,
@@ -73,17 +76,43 @@ function rpc<T = any>(method: string, ...args: unknown[]): Promise<T> {
     worker.postMessage({ id, method, args })
   })
 }
-function saveSettings(): void {
+function saveSettings(library = personalLibrary): void {
   const temp = `${settingsFile}.tmp`
-  writeFileSync(temp, JSON.stringify({ library: personalLibrary, updates: updatePreferences }, null, 2))
+  writeFileSync(temp, JSON.stringify({ library, updates: updatePreferences }, null, 2))
   require('node:fs').renameSync(temp, settingsFile)
 }
-async function switchLibrary(path: string, isDemo: boolean): Promise<void> {
-  await rpc('init', path, isDemo, assetsRoot)
-  demo = isDemo
-  if (!isDemo) {
-    personalLibrary = path
-    saveSettings()
+async function switchLibrary(path: string): Promise<void> {
+  if (switchingLibrary) throw new Error('资料库正在切换，请稍候')
+  const previous = demo ? demoLibrary : personalLibrary
+  if (relative(previous, path) === '') return
+  const nextIsDemo = relative(demoLibrary, path) === ''
+  switchingLibrary = true
+  try {
+    await rpc('init', path, nextIsDemo, assetsRoot)
+    if (!nextIsDemo && relative(personalLibrary, path) !== '') {
+      try {
+        saveSettings(path)
+      } catch (writeError) {
+        try {
+          await rpc('init', previous, demo, assetsRoot)
+        } catch (reopenError) {
+          // A disconnected old drive can make rollback impossible. The worker keeps
+          // its last successfully opened library; let the renderer read that library.
+          demo = nextIsDemo
+          personalLibrary = path
+          reportStartupError(
+            '新资料库已打开，启动设置未能保存',
+            `本次使用 ${path}。下次启动仍会尝试原位置。\n保存设置：${writeError}\n重新打开原库：${reopenError}`
+          )
+          return
+        }
+        throw new Error(`无法保存资料库位置，已回到原资料库：${writeError}`)
+      }
+      personalLibrary = path
+    }
+    demo = nextIsDemo
+  } finally {
+    switchingLibrary = false
   }
 }
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
@@ -161,6 +190,7 @@ async function handle(method: string, args: any[]): Promise<any> {
       window!.close()
     })
   }
+  if (switchingLibrary) throw new Error('资料库正在切换，请稍候')
   if (method === 'snapshot') return rpc<AppSnapshot>('snapshot')
   if (forwarded.has(method)) return rpc(method, ...args)
   if (method === 'cities')
@@ -185,7 +215,7 @@ async function handle(method: string, args: any[]): Promise<any> {
   }
   if (method === 'setDemo') {
     if (typeof args[0] !== 'boolean') throw new Error('无效模式')
-    await switchLibrary(args[0] ? join(profile, 'Demo') : personalLibrary, args[0])
+    await switchLibrary(args[0] ? demoLibrary : personalLibrary)
     return
   }
   if (method === 'chooseLibrary') {
@@ -195,12 +225,12 @@ async function handle(method: string, args: any[]): Promise<any> {
     const appDir = resolve(app.getAppPath())
     if (path === appDir || path.startsWith(appDir + require('node:path').sep))
       throw new Error('请选择程序目录之外的资料库文件夹')
-    await switchLibrary(path, false)
+    await switchLibrary(path)
     return path
   }
   if (method === 'openLibraryFolder') {
-    const snapshot = await rpc<AppSnapshot>('snapshot')
-    const error = await shell.openPath(snapshot.library.path)
+    const library = await rpc<LibraryInfo>('libraryInfo')
+    const error = await shell.openPath(library.path)
     if (error) throw new Error(error)
     return
   }
@@ -216,7 +246,7 @@ async function handle(method: string, args: any[]): Promise<any> {
     if (!parent) return null
     const destination = join(parent, `MyMap-restored-${stamp()}`)
     await rpc('restoreBackup', source, destination)
-    await switchLibrary(destination, false)
+    await switchLibrary(destination)
     return destination
   }
   if (method === 'exportEntry') {
@@ -288,7 +318,7 @@ else {
       createLibraryWorker()
       // Start Chromium and the local library together. Renderer calls wait for the
       // initial library, while the window, fonts and page modules can load in parallel.
-      initialLibrary = rpc('init', demo ? join(profile, 'Demo') : personalLibrary, demo, assetsRoot)
+      initialLibrary = rpc<void>('init', demo ? demoLibrary : personalLibrary, demo, assetsRoot)
       void initialLibrary.catch(async (error) => {
         reportStartupError('无法打开 MyMap 资料库', error)
         await shutdown()
@@ -404,9 +434,7 @@ else {
                 worker = null
                 previous?.kill()
                 createLibraryWorker()
-                await rpc('init', demo ? join(profile, 'Demo') : personalLibrary, demo, assetsRoot).catch(
-                  () => {}
-                )
+                await rpc('init', demo ? demoLibrary : personalLibrary, demo, assetsRoot).catch(() => {})
               }
               rejectUpdateExit(error)
               resumeEditing()

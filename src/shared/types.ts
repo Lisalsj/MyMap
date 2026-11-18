@@ -160,7 +160,7 @@ export interface MyMapApi {
   updateAttachment(
     id: string,
     patch: { caption?: string; sortOrder?: number; visitId?: string | null; entryId?: string | null }
-  ): Promise<void>
+  ): Promise<PhotoAttachment>
   confirmPhotoLocation(photoId: string, attachmentId?: string): Promise<Visit>
   backup(): Promise<string | null>
   restoreBackup(): Promise<string | null>

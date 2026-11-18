@@ -3,17 +3,19 @@ import { ArrowRight, MapPin } from '../ui/icons'
 import { StickerIcon } from '../ui/StickerIcon'
 import type { AppSnapshot } from '../../shared/types'
 import { Empty } from '../components/Common'
-import { effectiveVisitDate, passport } from '../model'
+import { effectiveVisitDate, type passport } from '../model'
 import { getSnapshotIndex } from '../snapshotIndex'
 import '../styles/passport.css'
 
 export function PassportPage({
+  allStamps,
   snapshot,
   year,
   tripId,
   cityId,
   onTrip
 }: {
+  allStamps: ReturnType<typeof passport>
   snapshot: AppSnapshot
   year: string
   tripId: string
@@ -30,12 +32,12 @@ export function PassportPage({
       if (place.cityId && !firstTripByCity.has(place.cityId)) firstTripByCity.set(place.cityId, visit.tripId)
     }
     return {
-      stamps: passport(snapshot).filter(
+      stamps: allStamps.filter(
         (stamp) => firstTripByCity.has(stamp.cityId) && (!cityId || cityId === stamp.cityId)
       ),
       firstTripByCity
     }
-  }, [snapshot, year, tripId, cityId])
+  }, [snapshot, allStamps, year, tripId, cityId])
 
   return (
     <div className="passport-page">

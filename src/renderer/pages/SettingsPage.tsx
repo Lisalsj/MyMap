@@ -12,8 +12,7 @@ export function SettingsPage({
   snapshot,
   run,
   confirm,
-  guarded,
-  reset
+  guarded
 }: {
   updateState?: UpdateState
   reportError: (message: string) => void
@@ -21,7 +20,6 @@ export function SettingsPage({
   run: RunOperation
   confirm: (confirmation: Confirmation) => void
   guarded: GuardedAction
-  reset: () => void
 }) {
   const trashItems = [
     ...snapshot.trips
@@ -41,7 +39,7 @@ export function SettingsPage({
   ]
   const switchLibrary = (operation: () => Promise<unknown>) =>
     guarded(async () => {
-      if (await run(operation)) reset()
+      await run(operation)
     })
 
   return (
@@ -97,11 +95,7 @@ export function SettingsPage({
                 title: '从备份恢复资料库',
                 description: '将打开备份选择窗口。恢复会切换到备份中的资料；请先妥善保存当前资料库。',
                 label: '选择备份恢复',
-                action: async () => {
-                  const result = await window.myMap.restoreBackup()
-                  if (result) reset()
-                  return result
-                }
+                action: () => window.myMap.restoreBackup()
               })
             }
           >

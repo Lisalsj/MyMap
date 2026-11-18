@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown,
   ArrowLeft,
@@ -15,9 +15,15 @@ import {
   Grid,
   List
 } from '../ui/icons'
-import { photoUrl, type AppSnapshot, type ImportProgress, type PhotoAttachment } from '../../shared/types'
-import { matches, type SaveState } from '../model'
-import { getSnapshotIndex } from '../snapshotIndex'
+import {
+  photoUrl,
+  type AppSnapshot,
+  type ImportProgress,
+  type PhotoAttachment,
+  type Trip
+} from '../../shared/types'
+import type { SaveState } from '../model'
+import { getSnapshotIndex, type SnapshotIndex } from '../snapshotIndex'
 import { useViewPreference } from '../ui/useViewPreference'
 import { PhotoDraftQueue, type PhotoDraft, type PhotoDraftPatch } from '../photoDraft'
 import { isTopDialog, useDialogFocus } from '../ui/useDialogFocus'
@@ -29,6 +35,8 @@ interface Props {
   tripId: string
   run: (operation: () => Promise<unknown>, success?: string) => Promise<boolean>
   refresh: () => Promise<void>
+  onAttachmentSaved: (record: PhotoAttachment) => void
+  onCreateImportTrip: (onCreated: (trip: Trip) => void, onCancel: () => void) => void
   registerFlush: (flush: () => Promise<void>) => void
   confirmTrash: (id: string) => void
 }
@@ -42,7 +50,27 @@ const initialProgress: ImportProgress = {
   current: '',
   cancelled: false
 }
-export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirmTrash }: Props) {
+const pageSize = 60
+// Snapshot updates replace changed rows. Old captions can be collected with their rows.
+const normalizedCaptions = new WeakMap<PhotoAttachment, string>()
+function captionIncludes(attachment: PhotoAttachment, term: string) {
+  let caption = normalizedCaptions.get(attachment)
+  if (caption === undefined) {
+    caption = attachment.caption.toLocaleLowerCase()
+    normalizedCaptions.set(attachment, caption)
+  }
+  return caption.includes(term)
+}
+export function Gallery({
+  snapshot,
+  tripId,
+  run,
+  refresh,
+  registerFlush,
+  confirmTrash,
+  onAttachmentSaved,
+  onCreateImportTrip
+}: Props) {
   const [filterTrip, setFilterTrip] = useState(tripId),
     [query, setQuery] = useState(''),
     [page, setPage] = useState(0),
@@ -53,104 +81,144 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
     [progress, setProgress] = useState(initialProgress),
     [progressVisible, setProgressVisible] = useState(false),
     [dragging, setDragging] = useState(false),
+    [choosingDestination, setChoosingDestination] = useState(false),
+    [destination, setDestination] = useState(''),
     [importing, setImporting] = useState(false),
     [error, setError] = useState('')
   const [density, setDensity] = useViewPreference('photo-density', ['comfortable', 'compact'], 'comfortable')
   const [photoSort, setPhotoSort] = useViewPreference('photo-sort', ['custom', 'recent'], 'custom')
   const index = useMemo(() => getSnapshotIndex(snapshot), [snapshot])
+  const ordered = useMemo(() => {
+    const scoped = filterTrip ? index.attachmentsByTrip.get(filterTrip) || [] : index.activeAttachments
+    return [...scoped].sort((a, b) =>
+      photoSort === 'recent'
+        ? (
+            index.photoById.get(b.photoId)?.capturedAt ||
+            index.photoById.get(b.photoId)?.createdAt ||
+            ''
+          ).localeCompare(
+            index.photoById.get(a.photoId)?.capturedAt || index.photoById.get(a.photoId)?.createdAt || ''
+          ) || a.sortOrder - b.sortOrder
+        : a.tripId.localeCompare(b.tripId) || a.sortOrder - b.sortOrder
+    )
+  }, [index, filterTrip, photoSort])
+  const term = query.trim().toLowerCase()
   const items = useMemo(
-    () =>
-      index.activeAttachments
-        .filter((a) => (!filterTrip || a.tripId === filterTrip) && matches(a.caption, query))
-        .sort((a, b) =>
-          photoSort === 'recent'
-            ? (
-                index.photoById.get(b.photoId)?.capturedAt ||
-                index.photoById.get(b.photoId)?.createdAt ||
-                ''
-              ).localeCompare(
-                index.photoById.get(a.photoId)?.capturedAt || index.photoById.get(a.photoId)?.createdAt || ''
-              ) || a.sortOrder - b.sortOrder
-            : a.tripId.localeCompare(b.tripId) || a.sortOrder - b.sortOrder
-        ),
-    [index, filterTrip, query, photoSort]
+    () => (term ? ordered.filter((item) => captionIncludes(item, term)) : ordered),
+    [ordered, term]
   )
   const activeById = useMemo(() => new Map(index.activeAttachments.map((a) => [a.id, a])), [index])
   // Search changes and caption edits must never silently unmount an active draft.
   const selected = lightbox ? activeById.get(lightbox) : undefined
-  const pages = Math.max(1, Math.ceil(items.length / 60))
-  const refreshRef = useRef(refresh)
-  refreshRef.current = refresh
-  const revision = useRef(0),
-    refreshedRevision = useRef(0),
-    flushTask = useRef<Promise<void> | null>(null),
-    queue = useRef<PhotoDraftQueue | null>(null)
+  const pages = Math.max(1, Math.ceil(items.length / pageSize))
+  const currentPage = Math.min(page, pages - 1)
+  const pageItems = useMemo(
+    () => items.slice(currentPage * pageSize, (currentPage + 1) * pageSize),
+    [items, currentPage]
+  )
+  const searchInput = useRef<HTMLInputElement>(null)
+  const gridArea = useRef<HTMLElement>(null)
+  const focusAfterClose = useRef<string | null>(null)
+  const lastPosition = useRef(0)
+  const changingPhoto = useRef(false)
+  const savingCallback = useRef(onAttachmentSaved)
+  savingCallback.current = onAttachmentSaved
+  const pendingImport = useRef<{ files?: File[] } | null>(null)
+  const importInFlight = useRef(false)
+  const queue = useRef<PhotoDraftQueue | null>(null)
   if (!queue.current)
     queue.current = new PhotoDraftQueue(
       async ({ id, ...patch }) => {
-        await window.myMap.updateAttachment(id, patch)
-        revision.current++
+        const record = await window.myMap.updateAttachment(id, patch)
+        savingCallback.current(record)
       },
       (state, message) => {
         setStatus(state)
         setSaveError(message || '')
       }
     )
-  const flushPhoto = useCallback((): Promise<void> => {
-    if (flushTask.current) return flushTask.current
-    const drain = async () => {
-      do {
-        await queue.current!.flush()
-        if (revision.current !== refreshedRevision.current) {
-          const savedRevision = revision.current
-          await refreshRef.current()
-          refreshedRevision.current = savedRevision
-        }
-      } while (queue.current!.dirty)
-    }
-    flushTask.current = drain()
-      .catch((cause) => {
-        setStatus('error')
-        setSaveError(cause instanceof Error ? cause.message : String(cause))
-        throw cause
-      })
-      .finally(() => {
-        flushTask.current = null
-      })
-    return flushTask.current
-  }, [])
+  const flushPhoto = useCallback(() => queue.current!.flush(), [])
   useEffect(() => {
     registerFlush(flushPhoto)
-    return () => registerFlush(async () => {})
+    return () => {
+      pendingImport.current = null
+      registerFlush(async () => {})
+    }
   }, [registerFlush, flushPhoto])
   const edit = (patch: PhotoDraftPatch) => {
     queue.current!.edit(patch)
     setDraft({ ...queue.current!.draft! })
   }
-  const guarded = async (action: () => void | Promise<unknown>) => {
-    try {
-      await flushPhoto()
-      await action()
-    } catch {
-      /* Keep the current draft and its inline error. */
-    }
-  }
-  const openPhoto = (attachment: PhotoAttachment) =>
+  const guarded = useCallback(
+    async (action: () => void) => {
+      if (changingPhoto.current) return
+      changingPhoto.current = true
+      try {
+        await flushPhoto()
+        action()
+      } catch {
+        /* Keep the current draft and its inline error. */
+      } finally {
+        changingPhoto.current = false
+      }
+    },
+    [flushPhoto]
+  )
+  const openPhoto = useCallback(
+    (attachment: PhotoAttachment, position: number) =>
+      guarded(() => {
+        queue.current!.open(attachment)
+        setDraft({ ...queue.current!.draft! })
+        setLightbox(attachment.id)
+        lastPosition.current = position
+        setPage(Math.floor(position / pageSize))
+      }),
+    [guarded]
+  )
+  const closePhoto = () =>
     guarded(() => {
-      queue.current!.open(attachment)
-      setDraft({ ...queue.current!.draft! })
-      setLightbox(attachment.id)
+      focusAfterClose.current = lightbox
+      setLightbox(null)
     })
-  const closePhoto = () => guarded(() => setLightbox(null))
+  useEffect(() => {
+    if (lightbox || !focusAfterClose.current) return
+    const found = items.findIndex((item) => item.id === focusAfterClose.current)
+    const position = found < 0 ? Math.min(lastPosition.current, items.length - 1) : found
+    if (position < 0) {
+      focusAfterClose.current = null
+      searchInput.current?.focus()
+      return
+    }
+    const targetPage = Math.floor(position / pageSize)
+    if (targetPage !== currentPage) {
+      setPage(targetPage)
+      return
+    }
+    focusAfterClose.current = null
+    gridArea.current
+      ?.querySelector<HTMLButtonElement>(`[data-attachment-id="${CSS.escape(items[position].id)}"]`)
+      ?.focus()
+  }, [lightbox, items, currentPage])
+  const selectedPosition = useMemo(
+    () => (lightbox ? items.findIndex((item) => item.id === lightbox) : -1),
+    [items, lightbox]
+  )
+  useEffect(() => {
+    if (selectedPosition >= 0) {
+      lastPosition.current = selectedPosition
+      setPage(Math.floor(selectedPosition / pageSize))
+    }
+  }, [selectedPosition])
   const step = (direction: number) => {
     if (!selected || !items.length) return
-    const at = items.findIndex((item) => item.id === selected.id)
-    const next = items[(Math.max(0, at) + direction + items.length) % items.length]
-    if (next && next.id !== selected.id) void openPhoto(next)
+    // If an edited caption no longer matches, its old slot now contains the following photo.
+    const at =
+      selectedPosition < 0
+        ? Math.min(lastPosition.current, items.length) - (direction > 0 ? 1 : 0)
+        : selectedPosition
+    const next = (at + direction + items.length) % items.length
+    if (items[next].id !== selected.id) void openPhoto(items[next], next)
   }
-  useEffect(() => {
-    setPage(0)
-  }, [filterTrip, query])
   useEffect(() => {
     if (page >= pages) setPage(pages - 1)
   }, [pages, page])
@@ -182,53 +250,77 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
       off()
     }
   }, [])
-  async function importPhotos(files?: File[]) {
-    if (importing || progress.running) return
-    if (!filterTrip) {
-      setError('先选择照片所属的旅行，再导入照片。')
-      return
-    }
+  function cancelDestination() {
+    pendingImport.current = null
+    setChoosingDestination(false)
+  }
+  async function importInto(id: string) {
+    const request = pendingImport.current
+    if (!request || importInFlight.current || !id) return
+    importInFlight.current = true
+    pendingImport.current = null
+    setChoosingDestination(false)
     setError('')
     setImporting(true)
     try {
       await flushPhoto()
-      if (files) await window.myMap.importDroppedPhotos(filterTrip, files)
-      else await window.myMap.importPhotos(filterTrip)
-      // App owns the single completion refresh, even when import finishes on another page.
+      if (request.files) await window.myMap.importDroppedPhotos(id, request.files)
+      else await window.myMap.importPhotos(id)
     } catch (cause) {
       setError(String(cause))
     } finally {
+      importInFlight.current = false
       setImporting(false)
     }
   }
+  function startImport(files?: File[]) {
+    if (pendingImport.current || importInFlight.current || progress.running || (files && !files.length))
+      return
+    pendingImport.current = { files }
+    setError('')
+    if (filterTrip && index.activeTripIds.has(filterTrip)) {
+      void importInto(filterTrip)
+    } else if (index.activeTrips.length) {
+      setDestination('')
+      setChoosingDestination(true)
+    } else {
+      onCreateImportTrip((trip) => void importInto(trip.id), cancelDestination)
+    }
+  }
+  const changePage = (next: number) => {
+    if (next < 0 || next >= pages) return
+    setPage(next)
+    requestAnimationFrame(() => gridArea.current?.querySelector<HTMLButtonElement>('.photo-tile')?.focus())
+  }
   return (
     <section
+      ref={gridArea}
       className={`gallery-page ${dragging ? 'is-dragging' : ''}`}
       onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
         event.preventDefault()
-        setDragging(true)
+        if (!lightbox && !pendingImport.current && !importInFlight.current && !progress.running)
+          setDragging(true)
       }}
       onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false)
       }}
       onDrop={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
         event.preventDefault()
         setDragging(false)
-        void importPhotos([...event.dataTransfer.files])
+        if (!lightbox) startImport(Array.from(event.dataTransfer.files))
       }}
     >
       <div className="gallery-toolbar">
         <label className="gallery-scope">
-          查看与导入旅行
+          查看范围
           <select
             aria-label="照片所属旅行"
             value={filterTrip}
             onChange={(event) => {
-              const value = event.target.value
-              void guarded(() => {
-                setFilterTrip(value)
-                setLightbox(null)
-              })
+              setFilterTrip(event.target.value)
+              setPage(0)
             }}
           >
             <option value="">所有旅行</option>
@@ -239,45 +331,52 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
             ))}
           </select>
         </label>
-        <label className="gallery-search">
-          搜索当前范围
+        <div className="gallery-search">
+          <label htmlFor="gallery-search-caption">照片说明</label>
           <span className="input-icon">
             <Search size={20} />
             <input
+              id="gallery-search-caption"
               aria-label="搜索照片说明"
-              placeholder="按照片说明查找"
+              ref={searchInput}
+              placeholder="搜索当前范围的照片"
               value={query}
               onChange={(event) => {
-                const value = event.target.value
-                void guarded(() => {
-                  setQuery(value)
-                  setLightbox(null)
-                })
+                setQuery(event.target.value)
+                setPage(0)
               }}
             />
+            {query && (
+              <button
+                type="button"
+                className="icon-button gallery-clear"
+                aria-label="清空照片搜索"
+                onClick={() => {
+                  setQuery('')
+                  setPage(0)
+                  searchInput.current?.focus()
+                }}
+              >
+                <X size={15} />
+              </button>
+            )}
           </span>
-        </label>
+        </div>
         <div className="gallery-import-action">
-          <span className="photo-count">{items.length} 张照片</span>
           <button
             className="button primary"
-            disabled={importing || progress.running || !filterTrip}
-            onClick={() => void importPhotos()}
+            disabled={importing || progress.running}
+            onClick={() => startImport()}
           >
             {importing ? <Spinner /> : <Upload size={20} />}导入照片
           </button>
         </div>
       </div>
-      <p className="gallery-hint">
-        {filterTrip
-          ? '可以拖入照片。照片保存在本地资料库，原文件仍保留。'
-          : '选择一段旅行后即可导入照片，也可以把照片拖到这里。'}
-      </p>
       <div className="gallery-view-bar">
-        <span>
-          照片集
-          <span className="muted"> · {items.length ? '点击照片，查看原图与记录' : '原图仅保存在本地'}</span>
-        </span>
+        <div className="gallery-result-summary">
+          <strong className="photo-count">{items.length} 张照片</strong>
+          <span className="gallery-hint">支持拖入 JPEG、PNG 和 WebP</span>
+        </div>
         <div className="collection-controls">
           <label className="inline-select">
             排序
@@ -285,11 +384,8 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
               aria-label="照片排序"
               value={photoSort}
               onChange={(e) => {
-                const value = e.target.value
-                void guarded(() => {
-                  setPhotoSort(value)
-                  setPage(0)
-                })
+                setPhotoSort(e.target.value)
+                setPage(0)
               }}
             >
               <option value="custom">旅行顺序</option>
@@ -365,76 +461,113 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
       )}
       {items.length ? (
         <>
-          <div className={`photo-grid photo-grid-${density}`}>
-            {items.slice(page * 60, (page + 1) * 60).map((attachment) => {
-              const photo = index.photoById.get(attachment.photoId)!,
-                trip = index.tripById.get(attachment.tripId)!
-              return (
-                <button className="photo-tile" key={attachment.id} onClick={() => void openPhoto(attachment)}>
-                  <span className="photo-tile-image m-zoom">
-                    <img
-                      src={photoUrl(photo.id)}
-                      width={photo.width}
-                      height={photo.height}
-                      loading="lazy"
-                      decoding="async"
-                      alt={attachment.caption || '旅行照片'}
-                    />
-                  </span>
-                  <span className="photo-tile-meta">
-                    <strong>{attachment.caption || trip.title}</strong>
-                    <small>
-                      {attachment.caption
-                        ? trip.title
-                        : photo.capturedAt?.slice(0, 10).replaceAll('-', '.') || '点击添加照片说明'}
-                    </small>
-                  </span>
-                  {trip.coverPhotoId === attachment.photoId && (
-                    <span className="cover-badge">
-                      <Star size={16} />
-                      旅行封面
-                    </span>
-                  )}
-                  {photo.lat !== null && photo.lon !== null && (
-                    <MapPin className="photo-location" size={20} aria-label="含拍摄位置" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-          <nav className="gallery-pagination" aria-label="照片分页">
-            <button className="button" disabled={page === 0} onClick={() => setPage(page - 1)}>
-              <ArrowLeft size={20} />
-              上一页
-            </button>
-            <span>
-              {page + 1} / {pages} 页<span>每页最多 60 张</span>
-            </span>
-            <button className="button" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>
-              下一页
-              <ArrowRight size={20} />
-            </button>
-          </nav>
+          <PhotoGrid
+            items={pageItems}
+            index={index}
+            density={density}
+            start={currentPage * pageSize}
+            onOpen={openPhoto}
+          />
+          {pages > 1 && (
+            <nav className="gallery-pagination" aria-label="照片分页">
+              <button
+                className="button"
+                disabled={currentPage === 0}
+                onClick={() => changePage(currentPage - 1)}
+              >
+                <ArrowLeft size={20} />
+                上一页
+              </button>
+              <span>
+                {currentPage + 1} / {pages} 页
+              </span>
+              <button
+                className="button"
+                disabled={currentPage >= pages - 1}
+                onClick={() => changePage(currentPage + 1)}
+              >
+                下一页
+                <ArrowRight size={20} />
+              </button>
+            </nav>
+          )}
         </>
       ) : (
         <Empty
           illustration="gallery"
-          title={query ? '没有找到匹配的照片' : '把旅途里的光，留在这里'}
+          title={term ? '没有找到匹配的照片' : !index.activeTrips.length ? '从第一段旅行开始' : '还没有照片'}
           description={
-            query
-              ? '换一个关键词，或清空搜索查看当前旅行的全部照片。'
-              : '先选择所属旅行，再导入沿途拍下的照片。'
+            term
+              ? '清空关键词，查看当前范围内的照片。'
+              : !index.activeTrips.length
+                ? '创建旅行后，就可以把照片收进这段旅程。'
+                : filterTrip
+                  ? '为这段旅行导入照片，或将照片拖到这里。'
+                  : '选择照片和所属旅行，即可在这里浏览和整理。'
           }
-          action={filterTrip ? () => void importPhotos() : undefined}
-          label="导入旅行照片"
+          action={
+            term
+              ? () => {
+                  setQuery('')
+                  setPage(0)
+                  searchInput.current?.focus()
+                }
+              : importing || progress.running
+                ? undefined
+                : () => startImport()
+          }
+          label={term ? '清空搜索' : !index.activeTrips.length ? '新建旅行并导入' : '导入旅行照片'}
         />
+      )}
+      {choosingDestination && (
+        <Modal title="选择导入旅行" onClose={cancelDestination}>
+          <form
+            className="form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void importInto(destination)
+            }}
+          >
+            <label>
+              保存到旅行
+              <select
+                aria-label="保存到旅行"
+                value={destination}
+                required
+                onChange={(event) => setDestination(event.target.value)}
+              >
+                <option value="">请选择旅行</option>
+                {index.activeTrips.map((trip) => (
+                  <option key={trip.id} value={trip.id}>
+                    {trip.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {pendingImport.current?.files && (
+              <p className="muted">已选 {pendingImport.current.files.length} 个文件</p>
+            )}
+            <div className="form-actions">
+              <button type="button" className="button" onClick={cancelDestination}>
+                取消
+              </button>
+              <button className="button primary" disabled={!destination}>
+                继续导入
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
       {dragging && (
         <div className="drop-overlay">
           <ImagePlus size={48} />
           <h2>松开鼠标，导入照片</h2>
           <p>
-            {filterTrip ? `保存到「${index.tripById.get(filterTrip)?.title}」` : '请先选择照片所属的旅行'}
+            {filterTrip
+              ? `保存到「${index.tripById.get(filterTrip)?.title}」`
+              : index.activeTrips.length
+                ? '下一步选择照片所属的旅行'
+                : '下一步创建旅行'}
           </p>
         </div>
       )}
@@ -449,6 +582,17 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
           flush={flushPhoto}
           onClose={() => void closePhoto()}
           onStep={step}
+          positionLabel={
+            selectedPosition < 0 ? '已移出当前筛选' : `${selectedPosition + 1} / ${items.length}`
+          }
+          canStep={items.length > (selectedPosition < 0 ? 0 : 1)}
+          onLocationSaved={async (visitId) => {
+            // Confirming GPS already saves the association in the library.
+            const next = { ...queue.current!.draft!, visitId }
+            queue.current!.open(next)
+            setDraft(next)
+            await refresh()
+          }}
           run={run}
           confirmTrash={() =>
             void guarded(() => {
@@ -462,6 +606,97 @@ export function Gallery({ snapshot, tripId, run, refresh, registerFlush, confirm
   )
 }
 
+const PhotoGrid = memo(function PhotoGrid({
+  items,
+  index,
+  density,
+  start,
+  onOpen
+}: {
+  items: readonly PhotoAttachment[]
+  index: SnapshotIndex
+  density: string
+  start: number
+  onOpen: (attachment: PhotoAttachment, position: number) => Promise<void>
+}) {
+  const grid = useRef<HTMLDivElement>(null)
+  const [admitted, setAdmitted] = useState<ReadonlySet<string>>(() => new Set())
+  useLayoutEffect(() => {
+    const container = grid.current
+    if (!container) return
+    const tiles = [...container.querySelectorAll<HTMLElement>('[data-attachment-id]')]
+    const columns = getComputedStyle(container).gridTemplateColumns.split(' ').length
+    // Keep loaded tiles mounted when a caption changes or the search narrows.
+    const ids = new Set(
+      tiles
+        .filter((tile, i) => i < columns || tile.querySelector('img'))
+        .map((tile) => tile.dataset.attachmentId!)
+    )
+    setAdmitted(new Set(ids))
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let changed = false
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          changed = true
+          ids.add((entry.target as HTMLElement).dataset.attachmentId!)
+          observer.unobserve(entry.target)
+        }
+        if (changed) setAdmitted(new Set(ids))
+      },
+      { rootMargin: '96px 0px' }
+    )
+    for (const tile of tiles) if (!ids.has(tile.dataset.attachmentId!)) observer.observe(tile)
+    return () => observer.disconnect()
+  }, [items, density])
+  return (
+    <div ref={grid} className={`photo-grid photo-grid-${density}`}>
+      {items.map((attachment, offset) => {
+        const photo = index.photoById.get(attachment.photoId)!,
+          trip = index.tripById.get(attachment.tripId)!
+        return (
+          <button
+            className="photo-tile"
+            data-attachment-id={attachment.id}
+            key={attachment.id}
+            onClick={() => void onOpen(attachment, start + offset)}
+          >
+            <span className="photo-tile-image m-zoom">
+              {admitted.has(attachment.id) && (
+                <img
+                  src={photoUrl(photo.id)}
+                  width={photo.width}
+                  height={photo.height}
+                  loading="eager"
+                  decoding="async"
+                  alt=""
+                />
+              )}
+            </span>
+            <span className="photo-tile-meta">
+              <strong>{attachment.caption || trip.title}</strong>
+              <small>
+                {attachment.caption
+                  ? trip.title
+                  : photo.capturedAt?.slice(0, 10).replaceAll('-', '.') || '点击添加照片说明'}
+              </small>
+            </span>
+            {trip.coverPhotoId === attachment.photoId && (
+              <span className="cover-badge">
+                <Star size={16} />
+                旅行封面
+              </span>
+            )}
+            {photo.lat !== null && photo.lon !== null && (
+              <MapPin className="photo-location" size={20} aria-label="含拍摄位置" />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+})
+
 function PhotoDetail({
   attachment,
   snapshot,
@@ -472,6 +707,9 @@ function PhotoDetail({
   flush,
   onClose,
   onStep,
+  positionLabel,
+  canStep,
+  onLocationSaved,
   run,
   confirmTrash
 }: {
@@ -484,6 +722,9 @@ function PhotoDetail({
   flush: () => Promise<void>
   onClose: () => void
   onStep: (direction: number) => void
+  positionLabel: string
+  canStep: boolean
+  onLocationSaved: (visitId: string) => Promise<void>
   run: Props['run']
   confirmTrash: () => void
 }) {
@@ -494,12 +735,18 @@ function PhotoDetail({
     [gpsBusy, setGpsBusy] = useState(false),
     [gpsError, setGpsError] = useState('')
   const holder = useRef<HTMLDivElement>(null)
-  useDialogFocus(holder, () => {
-    if (!gpsConfirm) onClose()
-  })
+  const closeButton = useRef<HTMLButtonElement>(null)
+  useDialogFocus(
+    holder,
+    () => {
+      if (!gpsConfirm) onClose()
+    },
+    closeButton
+  )
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (
+        !canStep ||
         !isTopDialog(holder.current) ||
         event.defaultPrevented ||
         event.target instanceof HTMLInputElement ||
@@ -514,7 +761,7 @@ function PhotoDetail({
     }
     window.addEventListener('keydown', listener)
     return () => window.removeEventListener('keydown', listener)
-  }, [onStep])
+  }, [onStep, canStep])
   const guarded = async (action?: () => Promise<unknown>) => {
     try {
       await flush()
@@ -523,10 +770,12 @@ function PhotoDetail({
       /* Keep the current photo and its draft visible. */
     }
   }
-  const group = [...(index.attachmentsByTrip.get(attachment.tripId) || [])].sort(
-    (a, b) => a.sortOrder - b.sortOrder
+  const group = useMemo(
+    () =>
+      [...(index.attachmentsByTrip.get(attachment.tripId) || [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    [index, attachment.tripId]
   )
-  const position = group.findIndex((item) => item.id === attachment.id)
+  const position = useMemo(() => group.findIndex((item) => item.id === attachment.id), [group, attachment.id])
   const reorder = (direction: number) =>
     guarded(async () => {
       const other = group[position + direction]
@@ -542,8 +791,7 @@ function PhotoDetail({
     try {
       await flush()
       const visit = await window.myMap.confirmPhotoLocation(photo.id, attachment.id)
-      edit({ visitId: visit.id })
-      await flush()
+      await onLocationSaved(visit.id)
       setGpsConfirm(false)
     } catch (cause) {
       setGpsError(cause instanceof Error ? cause.message : String(cause))
@@ -561,17 +809,29 @@ function PhotoDetail({
       tabIndex={-1}
     >
       <div className="lightbox-stage">
-        <button className="lightbox-close icon-button" aria-label="关闭照片" onClick={onClose}>
+        <button
+          ref={closeButton}
+          className="lightbox-close icon-button"
+          aria-label="关闭照片"
+          onClick={onClose}
+        >
           <X size={24} />
         </button>
-        <button className="lightbox-prev icon-button" aria-label="上一张照片" onClick={() => onStep(-1)}>
-          <ArrowLeft size={24} />
-        </button>
+        {canStep && (
+          <button className="lightbox-prev icon-button" aria-label="上一张照片" onClick={() => onStep(-1)}>
+            <ArrowLeft size={24} />
+          </button>
+        )}
         <img src={photoUrl(photo.id, 'preview')} alt={draft.caption || '旅行照片'} />
-        <button className="lightbox-next icon-button" aria-label="下一张照片" onClick={() => onStep(1)}>
-          <ArrowRight size={24} />
-        </button>
-        <span className="lightbox-tip">← → 切换照片 · Esc 保存并关闭</span>
+        {canStep && (
+          <button className="lightbox-next icon-button" aria-label="下一张照片" onClick={() => onStep(1)}>
+            <ArrowRight size={24} />
+          </button>
+        )}
+        <div className="lightbox-tip">
+          <strong role="status">{positionLabel}</strong>
+          <span>{canStep && '← → 切换照片 · '}Esc 保存并关闭</span>
+        </div>
       </div>
       <aside className="photo-details">
         <header className="photo-detail-heading">
@@ -632,7 +892,11 @@ function PhotoDetail({
             ))}
           </select>
         </label>
-        <button className="button primary" disabled={status === 'saving'} onClick={() => void guarded()}>
+        <button
+          className="button primary"
+          disabled={status === 'saving' || status === 'saved'}
+          onClick={() => void guarded()}
+        >
           <Check size={20} />
           保存照片说明
         </button>
@@ -640,6 +904,7 @@ function PhotoDetail({
           <h3>管理这张照片</h3>
           <button
             className="button"
+            disabled={trip.coverPhotoId === attachment.photoId}
             onClick={() =>
               void guarded(() =>
                 run(

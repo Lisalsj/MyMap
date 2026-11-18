@@ -1,9 +1,8 @@
-import { useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { ArrowRight, BookOpen, MapPin } from '../ui/icons'
 import type { AppSnapshot, Trip } from '../../shared/types'
 import { Empty } from '../components/Common'
 import { FootprintMap } from '../components/FootprintMap'
-import { passport } from '../model'
 import { getSnapshotIndex } from '../snapshotIndex'
 import { TripCard } from './TripCard'
 
@@ -13,6 +12,7 @@ interface Props {
   tripId: string
   year: string
   cityId: string
+  cityCount: number
   filteredTrips: readonly Trip[]
   onTrip: (id: string) => void
   onEntry: (id: string) => void
@@ -22,12 +22,13 @@ interface Props {
   onClearFilters: () => void
   onPickLocation: (lat: number, lon: number) => void
 }
-export function MapPage({
+function MapWorkspace({
   active,
   snapshot,
   tripId,
   year,
   cityId,
+  cityCount,
   filteredTrips,
   onTrip,
   onEntry,
@@ -39,7 +40,6 @@ export function MapPage({
 }: Props) {
   const index = getSnapshotIndex(snapshot)
   const { activeTrips: trips, activeEntries: entries, activeAttachments: attachments } = index
-  const stamps = useMemo(() => passport(snapshot), [snapshot])
   const photoCount = useMemo(() => new Set(attachments.map((item) => item.photoId)).size, [attachments])
   const recentEntries = useMemo(
     () => [...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3),
@@ -51,10 +51,6 @@ export function MapPage({
       if (visit && index.activeTripIds.has(visit.tripId)) onTrip(visit.tripId)
     },
     [index, onTrip]
-  )
-  const handlePickLocation = useCallback(
-    (lat: number, lon: number) => onPickLocation(lat, lon),
-    [onPickLocation]
   )
   return (
     <>
@@ -68,7 +64,7 @@ export function MapPage({
               year={year || undefined}
               cityId={cityId || undefined}
               onVisitSelect={handleVisitSelect}
-              onPickLocation={tripId ? handlePickLocation : undefined}
+              onPickLocation={tripId ? onPickLocation : undefined}
             />
           </div>
         </section>
@@ -87,7 +83,7 @@ export function MapPage({
             <h2>我的旅行收藏</h2>
             <div className="stats-row">
               <div>
-                <strong>{stamps.length.toString().padStart(2, '0')}</strong>
+                <strong>{cityCount.toString().padStart(2, '0')}</strong>
                 <span>个城市记录</span>
               </div>
               <div>
@@ -169,3 +165,6 @@ export function MapPage({
     </>
   )
 }
+
+// Keep the viewport mounted, but defer hidden content updates until the user returns.
+export const MapPage = memo(MapWorkspace, (previous, next) => !previous.active && !next.active)

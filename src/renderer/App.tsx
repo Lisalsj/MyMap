@@ -16,7 +16,7 @@ import {
   Filters,
   X
 } from './ui/icons'
-import type { AppSnapshot, Entry, EntityKind, Trip } from '../shared/types'
+import type { AppSnapshot, Entry, EntityKind, PhotoAttachment, Trip } from '../shared/types'
 import { matchingTrips, passport, tripDates, effectiveVisitDate } from './model'
 import { quickMatches } from './search'
 import { Modal, Spinner } from './components/Common'
@@ -41,11 +41,11 @@ const VisitEditor = lazy(() =>
 )
 const loadingPage = <PageSkeleton />
 
-const navigation: { id: Page & StickerKind; label: string; hint: string }[] = [
+const navigation: { id: Page & StickerKind; label: string; hint?: string }[] = [
   { id: 'map', label: '足迹地图', hint: '点亮去过的城市，翻看沿途的故事。' },
   { id: 'trips', label: '我的旅行', hint: '按一段段旅程，收藏地点、照片与手记。' },
   { id: 'journal', label: '旅行手账', hint: '留一页给风景，也留一页给当时的自己。' },
-  { id: 'gallery', label: '照片馆', hint: '整理沿途拍下的照片，为每一刻写下说明。' },
+  { id: 'gallery', label: '照片馆' },
   { id: 'passport', label: '旅行护照', hint: '每一次抵达，都在这里留下印记。' }
 ]
 export default function App() {
@@ -75,6 +75,9 @@ export default function App() {
   const flushRef = useRef<() => Promise<void>>(async () => {}),
     noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
     searchInput = useRef<HTMLInputElement>(null)
+  const activeLibrary = useRef<string | null>(null)
+  const pendingRead = useRef<{ path: string | null; edits: Map<string, PhotoAttachment> } | null>(null)
+  const importTripRequest = useRef<{ created: (trip: Trip) => void; cancel: () => void } | null>(null)
   const registerFlush = useCallback((flush: () => Promise<void>) => {
     flushRef.current = flush
   }, [])
@@ -87,10 +90,53 @@ export default function App() {
     if (!error) noticeTimer.current = setTimeout(() => setNotice(null), 4000)
   }, [])
   const refresh = useCallback(async () => {
-    const s = await window.myMap.snapshot()
-    setSnapshot(s)
-    setLoadError('')
+    const read = { path: activeLibrary.current, edits: new Map<string, PhotoAttachment>() }
+    pendingRead.current = read
+    try {
+      const next = await window.myMap.snapshot()
+      if (pendingRead.current !== read) return
+      if (activeLibrary.current !== null && next.library.path !== activeLibrary.current) {
+        setYear('')
+        setCityId('')
+        setSelectedTrip('')
+        setQuery('')
+        setSearchOpen(false)
+        setEntryId(null)
+        setDetail(false)
+        setPlayback(false)
+        setConfirmation(null)
+        setNotice(null)
+        setVisitEditor(null)
+        setTripEditor(false)
+        importTripRequest.current = null
+      }
+      activeLibrary.current = next.library.path
+      // A background import can request a snapshot while a caption is being saved.
+      if (read.edits.size && read.path === next.library.path)
+        next.attachments = next.attachments.map((row) => read.edits.get(row.id) || row)
+      setSnapshot(next)
+      setLoadError('')
+    } finally {
+      if (pendingRead.current === read) pendingRead.current = null
+    }
   }, [])
+  const libraryPath = snapshot?.library.path
+  const updateAttachment = useCallback(
+    (record: PhotoAttachment) => {
+      if (!libraryPath || activeLibrary.current !== libraryPath) return
+      const read = pendingRead.current
+      if (read?.path === libraryPath) read.edits.set(record.id, record)
+      setSnapshot((current) =>
+        current?.library.path === libraryPath
+          ? {
+              ...current,
+              attachments: current.attachments.map((row) => (row.id === record.id ? record : row))
+            }
+          : current
+      )
+    },
+    [libraryPath]
+  )
   useEffect(() => {
     refresh().catch((e) => setLoadError(String(e)))
     return () => {
@@ -201,6 +247,10 @@ export default function App() {
   const openJournal = useCallback(() => go('journal'), [go])
   const openTrips = useCallback(() => go('trips'), [go])
   const createTrip = useCallback(() => setTripEditor(null), [])
+  const createImportTrip = useCallback((created: (trip: Trip) => void, cancel: () => void) => {
+    importTripRequest.current = { created, cancel }
+    setTripEditor(null)
+  }, [])
   const clearFilters = useCallback(() => {
     setYear('')
     setCityId('')
@@ -270,6 +320,10 @@ export default function App() {
         : s
     )
   }
+  const stamps = useMemo(
+    () => (snapshot ? passport(snapshot) : []),
+    [snapshot?.trips, snapshot?.places, snapshot?.visits]
+  )
   const derived = useMemo(() => {
     if (!snapshot) return null
     const index = getSnapshotIndex(snapshot)
@@ -277,7 +331,6 @@ export default function App() {
     return {
       index,
       trips,
-      stamps: passport(snapshot),
       years: [
         ...new Set(
           [
@@ -357,7 +410,7 @@ export default function App() {
         )}
       </div>
     )
-  const { index, trips, stamps, years } = derived!
+  const { index, trips, years } = derived!
   const trip = index.activeTripIds.has(selectedTrip) ? index.tripById.get(selectedTrip) : undefined,
     currentNav = navigation.find((n) => n.id === page)
   const pickMemory = () => {
@@ -553,13 +606,9 @@ export default function App() {
             <button
               className="text-button"
               onClick={() =>
-                guarded(() =>
-                  run(() => window.myMap.setDemo(false)).then(() => {
-                    setSelectedTrip('')
-                    setEntryId(null)
-                    setDetail(false)
-                  })
-                )
+                guarded(async () => {
+                  await run(() => window.myMap.setDemo(false))
+                })
               }
             >
               回到我的资料库 <ArrowRight size={13} />
@@ -574,24 +623,27 @@ export default function App() {
           />
           <section className="page-heading">
             <div>
-              <div className="eyebrow">
-                {detail
-                  ? '旅行档案'
-                  : {
-                      map: '走过的地方',
-                      trips: '一程一册',
-                      journal: '路上的文字',
-                      gallery: '留住这一刻',
-                      passport: '我的城市收藏',
-                      settings: '本地资料管理'
-                    }[page]}
-              </div>
+              {page !== 'gallery' && (
+                <div className="eyebrow">
+                  {detail
+                    ? '旅行档案'
+                    : {
+                        map: '走过的地方',
+                        trips: '一程一册',
+                        journal: '路上的文字',
+                        passport: '我的城市收藏',
+                        settings: '本地资料管理'
+                      }[page]}
+                </div>
+              )}
               <h1>{detail && trip ? trip.title : currentNav?.label || '设置与资料库'}</h1>
-              <p>
-                {detail && trip
-                  ? tripDates(trip)
-                  : currentNav?.hint || '妥善保管每一段回忆，让故事安心生长。'}
-              </p>
+              {page !== 'gallery' && (
+                <p>
+                  {detail && trip
+                    ? tripDates(trip)
+                    : currentNav?.hint || '妥善保管每一段回忆，让故事安心生长。'}
+                </p>
+              )}
             </div>
             {page === 'map' && (
               <div className="heading-tally">
@@ -668,9 +720,15 @@ export default function App() {
               </span>
             </div>
           )}
-          <div hidden={page !== 'map'} inert={page !== 'map'} className="retained-map-page">
+          <div
+            key={snapshot.library.path}
+            hidden={page !== 'map'}
+            inert={page !== 'map'}
+            className="retained-map-page"
+          >
             <MapPage
               active={page === 'map'}
+              cityCount={stamps.length}
               snapshot={snapshot}
               tripId={selectedTrip}
               year={year}
@@ -727,6 +785,7 @@ export default function App() {
           {page === 'journal' && (
             <Suspense fallback={loadingPage}>
               <Journal
+                key={snapshot.library.path}
                 snapshot={snapshot}
                 entryId={entryId}
                 tripId={selectedTrip}
@@ -741,10 +800,13 @@ export default function App() {
           {page === 'gallery' && (
             <Suspense fallback={loadingPage}>
               <Gallery
+                key={snapshot.library.path}
                 snapshot={snapshot}
                 tripId={selectedTrip}
                 run={run}
                 refresh={refresh}
+                onAttachmentSaved={updateAttachment}
+                onCreateImportTrip={createImportTrip}
                 registerFlush={registerFlush}
                 confirmTrash={(id) => trash('attachment', id)}
               />
@@ -752,6 +814,7 @@ export default function App() {
           )}
           {page === 'passport' && (
             <PassportPage
+              allStamps={stamps}
               snapshot={snapshot}
               year={year}
               tripId={selectedTrip}
@@ -767,11 +830,6 @@ export default function App() {
               run={run}
               confirm={setConfirmation}
               guarded={guarded}
-              reset={() => {
-                setSelectedTrip('')
-                setEntryId(null)
-                setDetail(false)
-              }}
             />
           )}
           <footer className="page-footer">
@@ -786,12 +844,21 @@ export default function App() {
         <Suspense fallback={loadingPage}>
           <TripEditor
             trip={tripEditor || undefined}
-            onClose={() => setTripEditor(false)}
+            onClose={() => {
+              const request = importTripRequest.current
+              importTripRequest.current = null
+              setTripEditor(false)
+              request?.cancel()
+            }}
             onSave={async (input) => {
               await flushRef.current()
               const t = await window.myMap.saveTrip(input)
               await refresh()
-              if (tripEditor === null) {
+              const request = importTripRequest.current
+              if (request) {
+                importTripRequest.current = null
+                request.created(t)
+              } else if (tripEditor === null) {
                 setSelectedTrip(t.id)
                 setPage('trips')
                 setDetail(true)
